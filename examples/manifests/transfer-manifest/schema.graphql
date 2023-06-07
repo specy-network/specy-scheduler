@@ -1,0 +1,28 @@
+type Transfer @entity{
+  " { Transaction hash }"
+  id: ID!
+
+" Transaction hash of the transaction that emitted this event "
+  hash: String!
+
+  " Account that sent the tokens "
+  sender: String!
+
+ " Account that received the tokens "
+  receiver: String!
+
+   " Quantity of tokens transferred "
+  value: BigInt!
+
+  " Timestamp of this event "
+  timestamp: BigInt!
+
+  "Token name"
+  tokenname: String!
+
+  "contract address ：Bank"
+  contract_address: String!
+}
+
+
+

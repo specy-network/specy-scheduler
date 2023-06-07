@@ -1,0 +1,13 @@
+{
+    "title": "reward list proposal",
+    "description": "add a new reward list",
+    "rewardList": {
+        "contractAddress": "ics721",
+        "list": [
+            "{\"class_id\":\"class111\",\"token_id\":\"token111\"}",
+            "{\"class_id\":\"class222\",\"token_id\":\"token222\"}"
+        ]
+    },
+    "deposit": "20000000uiris",
+    "operationType": "insert"
+}

@@ -1,0 +1,35 @@
+type Binding @entity{
+  id: ID!
+  name: String!
+  content: String!
+  hash: String!
+  rules: [Rule!] 
+}
+
+type Relation @entity{
+  id: ID!
+  contract_address: String!
+  binding:Binding!
+}
+
+type Rule @entity{
+  id: ID! 
+  name: String!
+  content: String!
+  hash: String!
+}
+
+type Proposal @entity{
+  id:ID!
+  result: String!
+}
+
+type Block @entity{
+  id: ID!
+  hash: String!
+  height: BigInt!
+  app_hash: String!
+  data_hash: String!
+  proposer_address: String!
+  timestamp: BigInt!
+}

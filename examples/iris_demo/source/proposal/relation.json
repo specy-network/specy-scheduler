@@ -1,0 +1,10 @@
+{
+    "title": "add new relation proposal",
+    "description": "add a new relation",
+    "relation": {
+        "contractAddress": "bank",
+        "bindingName": "bank_binding"
+    },
+    "deposit": "20000000uiris",
+    "operationType": "insert"
+}

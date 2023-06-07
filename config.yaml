@@ -1,0 +1,3 @@
+chain_id: Specy Network
+chain_binary_location: iris
+engine_node_address: 127.0.0.1:50051
