@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	specydispatcher "github.com/cosmos/relayer/v2/specy/dispatcher"
+
 	"log"
 	"os/exec"
 	"time"
@@ -14,7 +16,7 @@ import (
 	abci "github.com/cometbft/cometbft/abci/types"
 	rpcclient "github.com/cometbft/cometbft/rpc/client"
 	sdk "github.com/cosmos/cosmos-sdk/types"
-	txspectypes "github.com/cosmos/relayer/v2/specy/types"
+	specytypes "github.com/cosmos/relayer/v2/specy/types"
 )
 
 func HandleTxWithTxSpec(
@@ -74,18 +76,18 @@ func queryTxHash(ctx context.Context, client rpcclient.Client, height uint64, tx
 	fmt.Printf("-------------txHash: %+v \n", txHash)
 
 	if txHash == nil {
-		return txHash, txspectypes.ErrNotFindTxHash
+		return txHash, specytypes.ErrNotFindTxHash
 	}
 	return txHash, err
 }
 
-func invokeChainWithTxSpecResponse(txSpecResp txspectypes.ProofResponse, contractAddress string) error {
+func invokeChainWithTxSpecResponse(txSpecResp specytypes.ProofResponse, contractAddress string) error {
 	jsonData, err := json.Marshal(txSpecResp.Proofs)
 	if err != nil {
 		fmt.Println("JSON encoding error:", err)
 		return err
 	}
-	cmd := exec.Command("iris", "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature), contractAddress)
+	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature), contractAddress)
 	// 执行命令并获取输出
 	output, err := cmd.Output()
 	if err != nil {
@@ -98,8 +100,8 @@ func invokeChainWithTxSpecResponse(txSpecResp txspectypes.ProofResponse, contrac
 }
 
 // 根据event 的contract进行分类
-func classifyEventsByContract(ctx context.Context, events []sdk.StringEvent) ([]*txspectypes.ContractEvent, bool) {
-	contractEventMap := make(map[string]txspectypes.ContractEvent)
+func classifyEventsByContract(ctx context.Context, events []sdk.StringEvent) ([]*specytypes.ContractEvent, bool) {
+	contractEventMap := make(map[string]specytypes.ContractEvent)
 	regFlag := false
 	for _, event := range events {
 		// 1.查找event的contract attribute，如果找不到，暂且认为该event不需要监管
@@ -118,13 +120,13 @@ func classifyEventsByContract(ctx context.Context, events []sdk.StringEvent) ([]
 		contractEvent, ok := contractEventMap[contractName]
 		if !ok {
 			//不存在，创建新的
-			contractEvent = txspectypes.ContractEvent{ContractID: contractName, Events: []*txspectypes.Event{}}
+			contractEvent = specytypes.ContractEvent{ContractID: contractName, Events: []*specytypes.Event{}}
 			contractEventMap[contractName] = contractEvent
 		}
-		contractEventItem := &txspectypes.Event{EventName: event.Type}
+		contractEventItem := &specytypes.Event{EventName: event.Type}
 
 		for _, attribute := range event.Attributes {
-			contractEventItemAttribute := &txspectypes.Attribute{
+			contractEventItemAttribute := &specytypes.Attribute{
 				Key:   attribute.Key,
 				Value: attribute.Value,
 			}
@@ -134,7 +136,7 @@ func classifyEventsByContract(ctx context.Context, events []sdk.StringEvent) ([]
 		contractEventMap[contractName] = contractEvent
 	}
 
-	cts := make([]*txspectypes.ContractEvent, len(contractEventMap))
+	cts := make([]*specytypes.ContractEvent, len(contractEventMap))
 
 	index := 0
 	//map 转为数组
@@ -147,10 +149,10 @@ func classifyEventsByContract(ctx context.Context, events []sdk.StringEvent) ([]
 }
 
 func checkRegulatoryContractName(ctx context.Context, contractName string) bool {
-	fmt.Printf("-------------ctx: %+v \n", ctx.Value(txspectypes.SpecyInfoKey))
+	fmt.Printf("-------------ctx: %+v \n", ctx.Value(specytypes.SpecyInfoKey))
 
-	txSpecInfoMap := ctx.Value(txspectypes.SpecyInfoKey).(map[string]any)
-	contractNameDict := txSpecInfoMap[txspectypes.ContractNameDictKey].(map[string]bool)
+	specyInfoMap := ctx.Value(specytypes.SpecyInfoKey).(map[string]any)
+	contractNameDict := specyInfoMap[specytypes.ContractNameDictKey].(map[string]bool)
 	return contractNameDict[contractName]
 }
 
@@ -158,7 +160,7 @@ func checkRegulatoryContractName(ctx context.Context, contractName string) bool 
 func findEventContractName(event sdk.StringEvent) string {
 	contractName := ""
 	for _, attr := range event.Attributes {
-		if string(attr.Key) == txspectypes.AttributeKeyContractAddress {
+		if string(attr.Key) == specytypes.AttributeKeyContractAddress {
 			contractName = attr.Value
 		}
 	}

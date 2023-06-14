@@ -545,6 +545,5 @@ func (ccp *CosmosChainProcessor) CurrentRelayerBalance(ctx context.Context) {
 }
 
 func isSpecyNetwork(chainId string) bool {
-	fmt.Println("SpecyConfig.ChainId: ", specyconfig.Config.ChainId)
 	return chainId == specyconfig.Config.ChainId
 }

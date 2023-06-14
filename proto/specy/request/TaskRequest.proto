@@ -1,8 +1,0 @@
-syntax = "proto3";
-
-package specy.request;
-option go_package = "relayer/specy/types";
-
-message TaskRequest {
-    bytes taskhash = 1;
-}

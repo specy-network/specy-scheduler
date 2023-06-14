@@ -2,18 +2,28 @@ package main
 
 import (
 	"fmt"
-	"github.com/cosmos/relayer/v2/specy"
+	"github.com/cosmos/relayer/v2/cmd"
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	"log"
-	"time"
+	"path"
+	"runtime"
 )
 
 func init() {
+	if specyconfig.Config != nil {
+		return
+	}
+
+	// 获取当前文件的路径
+	_, filename, _, _ := runtime.Caller(0)
+	root := path.Dir(filename)
+
 	// 读取配置文件
-	configPath := "config.yaml"
+	configPath := path.Join(root, "config.yaml")
 	cfg, err := specyconfig.ReadConfigFile(configPath)
 	if err != nil {
 		log.Fatalf("Failed to read config file: %v", err)
+		return
 	}
 
 	// 保存配置到全局变量
@@ -25,13 +35,5 @@ func init() {
 }
 
 func main() {
-	//cmd.Execute()
-
-	// test scheduler
-	now := time.Now()
-	startTime := time.Date(now.Year(), now.Month(), now.Day(), 10, 0, 0, 0, now.Location())
-	specy.StartScheduler(nil, "test", startTime, 10*time.Second)
-
-	// 等待一段时间后停止 goroutine
-	time.Sleep(time.Minute * 5)
+	cmd.Execute()
 }

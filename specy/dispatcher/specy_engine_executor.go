@@ -73,9 +73,10 @@ func SendTaskRequest(ctx context.Context, request types.TaskRequest) (types.Task
 		clientCon, err := grpc.Dial(specyEngineAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
 		if err != nil {
 			log.Fatal(err)
+			return types.TaskResponse{}, err
 		}
 
-		client := types.NewRegisterClient(clientCon)
+		client := types.NewRegulatorClient(clientCon)
 		fmt.Printf("-------------client: %+v \n", client)
 
 		stream, err := client.GetTaskResult(context.Background())
@@ -84,7 +85,7 @@ func SendTaskRequest(ctx context.Context, request types.TaskRequest) (types.Task
 		if err != nil {
 			return types.TaskResponse{}, err
 		}
-		cacheEngineStream(ctx, &stream)
+		ctx = cacheEngineStream(ctx, &stream)
 		cs = stream
 	}
 	cs.Send(&request)
@@ -95,19 +96,19 @@ func SendTaskRequest(ctx context.Context, request types.TaskRequest) (types.Task
 	return *resp, nil
 }
 
-func cacheEngineStream(ctx context.Context, stream *types.Register_GetTaskResultClient) {
-	specyInfoMap := ctx.Value(types.SpecyInfoKey).(map[string]any)
+func cacheEngineStream(ctx context.Context, stream *types.Regulator_GetTaskResultClient) context.Context {
+	specyInfoMap := *ctx.Value(types.SpecyInfoKey).(*map[string]any)
 	specyInfoMap[types.EngineStreamKey] = &stream
 
-	ctx = context.WithValue(ctx, types.SpecyInfoKey, &specyInfoMap)
+	return context.WithValue(ctx, types.SpecyInfoKey, &specyInfoMap)
 }
 
-func getCachedEngineStream(ctx context.Context) types.Register_GetTaskResultClient {
+func getCachedEngineStream(ctx context.Context) types.Regulator_GetTaskResultClient {
 	specyInfoMap, ok := ctx.Value(types.SpecyInfoKey).(map[string]any)
 	if !ok {
 		return nil
 	}
-	cs, ok := specyInfoMap[types.EngineStreamKey].(types.Register_GetTaskResultClient)
+	cs, ok := specyInfoMap[types.EngineStreamKey].(types.Regulator_GetTaskResultClient)
 	if !ok {
 		return nil
 	}
@@ -115,66 +116,68 @@ func getCachedEngineStream(ctx context.Context) types.Register_GetTaskResultClie
 }
 
 func SendProofRequest(ctx context.Context, pr types.ProofRequest) (types.ProofResponse, error) {
-	//如果stream失效则应该进行重新构造尝试
-	log.Default().Println("开始监管逻辑")
-	cs := getCachedComplianceStream(ctx)
-	if cs == nil {
-		// TODO query registation endpoint info in global context, if does not exist, query chain and store in global context
-		//registrationList := k.GetAllRegistration(ctx)
-		//log.Default().Println(registrationList[0])
-		//if len(registrationList) == 0 {
-		//	return types.ProofResponse{}, types.ErrEmptyRegistrationList
-		//}
-
-		//complianceAddress := registrationList[0].Endpoint.IpAddress + ":" + fmt.Sprint(registrationList[0].Endpoint.Port)
-		complianceAddress := getRegulatoryEndpoint(ctx)
-		fmt.Printf("-------------complianceAddress: %s \n", complianceAddress)
-
-		clientCon, err := grpc.Dial(complianceAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
-		if err != nil {
-			log.Fatal(err)
-		}
-
-		client := types.NewRegulatorClient(clientCon)
-		fmt.Printf("-------------client: %+v \n", client)
-
-		stream, err := client.GetComplianceProof(context.Background())
-		fmt.Printf("-------------stream: %+v \n", stream)
-
-		if err != nil {
-			return types.ProofResponse{}, err
-		}
-		cacheComplianceStream(ctx, &stream)
-		cs = stream
-	}
-	cs.Send(&pr)
-	resp, err := cs.Recv()
-	if err != nil {
-		return types.ProofResponse{}, err
-	}
-	return *resp, nil
+	//	//如果stream失效则应该进行重新构造尝试
+	//	log.Default().Println("开始监管逻辑")
+	//	cs := getCachedComplianceStream(ctx)
+	//	if cs == nil {
+	//		// TODO query registation endpoint info in global context, if does not exist, query chain and store in global context
+	//		//registrationList := k.GetAllRegistration(ctx)
+	//		//log.Default().Println(registrationList[0])
+	//		//if len(registrationList) == 0 {
+	//		//	return types.ProofResponse{}, types.ErrEmptyRegistrationList
+	//		//}
+	//
+	//		//complianceAddress := registrationList[0].Endpoint.IpAddress + ":" + fmt.Sprint(registrationList[0].Endpoint.Port)
+	//		complianceAddress := getRegulatoryEndpoint(ctx)
+	//		fmt.Printf("-------------complianceAddress: %s \n", complianceAddress)
+	//
+	//		clientCon, err := grpc.Dial(complianceAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	//		if err != nil {
+	//			log.Fatal(err)
+	//		}
+	//
+	//		client := types.NewRegulatorClient(clientCon)
+	//		fmt.Printf("-------------client: %+v \n", client)
+	//
+	//		stream, err := client.GetComplianceProof(context.Background())
+	//		fmt.Printf("-------------stream: %+v \n", stream)
+	//
+	//		if err != nil {
+	//			return types.ProofResponse{}, err
+	//		}
+	//		cacheComplianceStream(ctx, &stream)
+	//		cs = stream
+	//	}
+	//	cs.Send(&pr)
+	//	resp, err := cs.Recv()
+	//	if err != nil {
+	//		return types.ProofResponse{}, err
+	//	}
+	//	return *resp, nil
+	return types.ProofResponse{}, nil
 }
 
-func cacheComplianceStream(ctx context.Context, stream *types.Regulator_GetComplianceProofClient) {
-	txSpecInfoMap := ctx.Value(types.SpecyInfoKey).(map[string]any)
-	txSpecInfoMap[types.ComplianceStreamKey] = &stream
-
-	ctx = context.WithValue(ctx, types.SpecyInfoKey, &txSpecInfoMap)
-}
-
-func getCachedComplianceStream(ctx context.Context) types.Regulator_GetComplianceProofClient {
-	txSpecInfoMap, ok := ctx.Value(types.SpecyInfoKey).(map[string]any)
-	if !ok {
-		return nil
-	}
-	cs, ok := txSpecInfoMap[types.ComplianceStreamKey].(types.Regulator_GetComplianceProofClient)
-	if !ok {
-		return nil
-	}
-	return cs
-}
+//
+//func cacheComplianceStream(ctx context.Context, stream *types.Regulator_GetComplianceProofClient) {
+//	specyInfoMap := ctx.Value(types.SpecyInfoKey).(map[string]any)
+//	specyInfoMap[types.ComplianceStreamKey] = &stream
+//
+//	ctx = context.WithValue(ctx, types.SpecyInfoKey, &specyInfoMap)
+//}
+//
+//func getCachedComplianceStream(ctx context.Context) types.Regulator_GetComplianceProofClient {
+//	specyInfoMap, ok := ctx.Value(types.SpecyInfoKey).(map[string]any)
+//	if !ok {
+//		return nil
+//	}
+//	cs, ok := specyInfoMap[types.ComplianceStreamKey].(types.Regulator_GetComplianceProofClient)
+//	if !ok {
+//		return nil
+//	}
+//	return cs
+//}
 
 func getRegulatoryEndpoint(ctx context.Context) string {
-	txSpecInfoMap := ctx.Value(types.SpecyInfoKey).(map[string]any)
-	return txSpecInfoMap[types.RegistrationEndpointKey].(string)
+	specyInfoMap := ctx.Value(types.SpecyInfoKey).(map[string]any)
+	return specyInfoMap[types.RegistrationEndpointKey].(string)
 }

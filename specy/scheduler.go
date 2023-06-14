@@ -74,12 +74,12 @@ func startGoroutine(ctx context.Context, goroutines map[string]chan struct{}, ta
 	}()
 }
 
-func StopScheduler() {
-	stopGoroutine(goroutines, "goroutine1")
+func StopScheduler(taskHash string) {
+	stopGoroutine(goroutines, taskHash)
 }
 
-func stopGoroutine(goroutines map[string]chan struct{}, id string) {
-	stopCh, ok := goroutines[id]
+func stopGoroutine(goroutines map[string]chan struct{}, taskHash string) {
+	stopCh, ok := goroutines[taskHash]
 	if !ok {
 		return
 	}
@@ -88,5 +88,5 @@ func stopGoroutine(goroutines map[string]chan struct{}, id string) {
 	close(stopCh)
 
 	// 从 map 中移除 goroutine
-	delete(goroutines, id)
+	delete(goroutines, taskHash)
 }

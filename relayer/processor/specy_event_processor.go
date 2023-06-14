@@ -38,8 +38,8 @@ func HandleEventWithSpecy(
 			// TODO init register info map
 		case "relation":
 			// TODO init relation contract name map
+
 		case "create_task":
-			now := time.Now()
 			var taskHash string
 			var startTime time.Time
 			var intervalDuration time.Duration
@@ -63,11 +63,14 @@ func HandleEventWithSpecy(
 						} else {
 							fmt.Println(dateTime)
 						}
-						if now.After(startTime) {
-							startTime = dateTime.AddDate(0, 0, 1)
-						} else {
-							startTime = dateTime
+
+						now := time.Now()
+						nextTime := time.Date(now.Year(), now.Month(), now.Day(), dateTime.Hour(), dateTime.Minute(), dateTime.Second(), 0, now.Location())
+						if nextTime.Before(now) || nextTime.Equal(now) {
+							nextTime = nextTime.AddDate(0, 0, 1)
 						}
+
+						startTime = nextTime
 					} else {
 						fmt.Println("未找到匹配的结果")
 					}
@@ -83,6 +86,16 @@ func HandleEventWithSpecy(
 				// 周期任务
 				specy.StartScheduler(ctx, taskHash, startTime, intervalDuration)
 			}
+
+		case "cancle_task":
+			var taskHash string
+			for _, attr := range event.Attributes {
+				switch attr.Key {
+				case "task_hash":
+					taskHash = attr.Value
+				}
+			}
+			specy.StopScheduler(taskHash)
 		}
 	}
 }

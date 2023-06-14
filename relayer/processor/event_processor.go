@@ -112,15 +112,15 @@ func (ep EventProcessor) Run(ctx context.Context) error {
 }
 
 func initGlobalInfoForTxSpec(ctx context.Context) context.Context {
-	txSpecInfoMap := make(map[string]any)
+	specyInfoMap := make(map[string]any)
 	contractNameDict := make(map[string]bool)
 
 	// TODO query regulatory relation info
 	contractNameDict["ics721"] = true // hardcode
-	txSpecInfoMap[specytypes.ContractNameDictKey] = &contractNameDict
+	specyInfoMap[specytypes.ContractNameDictKey] = &contractNameDict
 
 	// TODO query regulatory register info
-	txSpecInfoMap[specytypes.RegistrationEndpointKey] = "127.0.0.1:50051" // hardcode
+	specyInfoMap[specytypes.RegistrationEndpointKey] = "127.0.0.1:50051" // hardcode
 
-	return context.WithValue(ctx, specytypes.SpecyInfoKey, &txSpecInfoMap)
+	return context.WithValue(ctx, specytypes.SpecyInfoKey, &specyInfoMap)
 }
