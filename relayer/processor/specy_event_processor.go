@@ -44,7 +44,9 @@ func HandleEventWithSpecy(
 			var startTime time.Time
 			var intervalDuration time.Duration
 			var single bool
-			for _, attr := range event.Attributes {
+			fmt.Printf("event: %+v \n", evt)
+
+			for _, attr := range evt.Attributes {
 				switch attr.Key {
 				case "task_hash":
 					taskHash = attr.Value
@@ -65,7 +67,12 @@ func HandleEventWithSpecy(
 						}
 
 						now := time.Now()
-						nextTime := time.Date(now.Year(), now.Month(), now.Day(), dateTime.Hour(), dateTime.Minute(), dateTime.Second(), 0, now.Location())
+						var nextTime time.Time
+						if dateTime.Before(now) || dateTime.Equal(now) {
+							nextTime = time.Date(now.Year(), now.Month(), now.Day(), dateTime.Hour(), dateTime.Minute(), dateTime.Second(), 0, now.Location())
+						} else {
+							nextTime = dateTime
+						}
 						if nextTime.Before(now) || nextTime.Equal(now) {
 							nextTime = nextTime.AddDate(0, 0, 1)
 						}
