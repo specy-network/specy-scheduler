@@ -1,4 +1,2 @@
-./data
-logs/*
-tmp/
 data/
+logs/graphnode.log

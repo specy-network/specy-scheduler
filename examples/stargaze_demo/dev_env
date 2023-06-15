@@ -1,10 +1,10 @@
 #!/bin/bash -e
 RELAYER_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 RELAYER_CONF="$HOME/.relayer"
-GAIA_CONF="$(pwd)/data"
+SPECY_CONF="$(pwd)/data"
 
 # Ensure user understands what will be deleted
-if ([[ -d $RELAYER_CONF ]] || [[ -d $GAIA_CONF ]]) && [[ ! "$1" == "skip" ]]; then
+if ([[ -d $RELAYER_CONF ]] || [[ -d $SPECY_CONF ]]) && [[ ! "$1" == "skip" ]]; then
   read -p "$0 will delete \$HOME/.relayer and \$(pwd)/data folder. Do you wish to continue? (y/n): " -n 1 -r
   echo
   if [[ ! $REPLY =~ ^[Yy]$ ]]; then
@@ -22,7 +22,7 @@ echo "waiting for blocks..."
 sleep 3
 
 # creates clients, connections and channels (all this happens in rly tx command)
-rly tx link demo --src-port nft-transfer --dst-port nft-transfer -v ics721-1 -d -t 3s
+rly tx link demo -d -t 3s
 sleep 2
 echo "--  Initial balances --"
 echo "balance 0 $(rly q bal ibc-2)"
@@ -30,7 +30,7 @@ echo "balance 1 $(rly q bal ibc-1)"
 
 rly start demo
 # echo "-- Sending IBC transaction... --"
-# rly tx transfer ibc-2 ibc-1 100000uiris "$(rly keys show ibc-1)" channel-0 -d
+# rly tx transfer ibc-0 ibc-1 100000samoleans "$(rly keys show ibc-1)" channel-0 -d
 # sleep 5
 
 # # relay remaining packets -- (could also be accomplished by running: `rly start`)
@@ -41,11 +41,11 @@ rly start demo
 # rly tx relay-acknowledgements demo channel-0 -d
 # sleep 5
 # echo "-- Balances after packets are sent --"
-# echo "balance 0 $(rly q bal ibc-2)"
+# echo "balance 0 $(rly q bal ibc-0)"
 # echo "balance 1 $(rly q bal ibc-1)"
 
 # echo "-- Sending tokens back to original wallet... --"
-# rly tx transfer ibc-1 ibc-2 100000transfer/channel-0/uiris "$(rly keys show ibc-2)" channel-0 -d
+# rly tx transfer ibc-1 ibc-0 100000transfer/channel-0/samoleans "$(rly keys show ibc-0)" channel-0 -d
 # sleep 5
 
 # rly tx relay-packets demo channel-0 -d
@@ -55,5 +55,5 @@ rly start demo
 # sleep 5
 
 # echo "-- Balances after sending packets back --"
-# echo "balance 0 $(rly q bal ibc-2)"
+# echo "balance 0 $(rly q bal ibc-0)"
 # echo "balance 1 $(rly q bal ibc-1)"
