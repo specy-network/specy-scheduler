@@ -90,6 +90,8 @@ func SendTaskRequest(ctx context.Context, request types.TaskRequest) (types.Task
 	}
 	cs.Send(&request)
 	resp, err := cs.Recv()
+	fmt.Printf("-------------resp: %+v \n", resp)
+
 	if err != nil {
 		return types.TaskResponse{}, err
 	}

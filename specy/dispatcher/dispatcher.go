@@ -5,7 +5,7 @@ import (
 	"log"
 )
 
-func ExecuteTask(ctx context.Context, taskHash string) {
+func ExecuteTask(ctx context.Context, taskHash string, calldata string) {
 
 	// invoke specy engine
 	taskResponse, err := InvokeSpecyEngineWithTask(ctx, taskHash)
@@ -15,7 +15,7 @@ func ExecuteTask(ctx context.Context, taskHash string) {
 	}
 
 	// send task response to chain
-	SendTaskResponseToChain(taskResponse)
+	SendTaskResponseToChain(taskResponse, calldata)
 	if err != nil {
 		log.Fatal(err)
 		return

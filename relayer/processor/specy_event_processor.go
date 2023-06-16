@@ -44,6 +44,7 @@ func HandleEventWithSpecy(
 			var startTime time.Time
 			var intervalDuration time.Duration
 			var single bool
+			var calldata string
 			fmt.Printf("event: %+v \n", evt)
 
 			for _, attr := range evt.Attributes {
@@ -85,13 +86,15 @@ func HandleEventWithSpecy(
 					intervalDuration = 24 * time.Hour
 				case "task_single":
 					single, _ = strconv.ParseBool(attr.Value)
+				case "task_calldata":
+					calldata = attr.Value
 				default:
 					continue
 				}
 			}
 			if !single {
 				// 周期任务
-				specy.StartScheduler(ctx, taskHash, startTime, intervalDuration)
+				specy.StartScheduler(ctx, taskHash, calldata, startTime, intervalDuration)
 			}
 
 		case "cancle_task":
