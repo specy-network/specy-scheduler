@@ -8,6 +8,7 @@ import (
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	specytypes "github.com/cosmos/relayer/v2/specy/types"
 	"os/exec"
+	"strconv"
 	"time"
 )
 
@@ -15,7 +16,7 @@ func SendTaskResponseToChain(specyResp specytypes.TaskResponse, calldata string)
 	taskResult := string(specyResp.Result.TaskResult)
 	//taskResult := "FM2vKqiPHN0XCQ=="
 	//taskResult, _ = decodeTaskResult(taskResult)
-	completeCalldata, err := assembleCalldata(calldata, taskResult)
+	completeCalldata, err := AssembleCalldata(calldata, taskResult)
 	if err != nil {
 		return err
 	}
@@ -32,7 +33,7 @@ func SendTaskResponseToChain(specyResp specytypes.TaskResponse, calldata string)
 	return nil
 }
 
-func assembleCalldata(calldata string, taskResult string) (string, error) {
+func AssembleCalldata(calldata string, taskResult string) (string, error) {
 	// 解析 JSON 字符串
 	var data Data
 	err := json.Unmarshal([]byte(calldata), &data)
@@ -43,37 +44,30 @@ func assembleCalldata(calldata string, taskResult string) (string, error) {
 
 	// 根据 index 赋值
 	if data.Index >= 0 && data.Index < len(data.Params) {
-		data.Params[data.Index].Value = taskResult
+		data.Params[data.Index] = taskResult
 	}
 
 	// 提取 value 值
 	values := make([]string, len(data.Params))
-	for i, param := range data.Params {
-		values[i] = param.Value
-	}
 	currentTime := time.Now()
 	truncatedTime := time.Date(currentTime.Year(), currentTime.Month(), currentTime.Day(), 0, 0, 0, 0, currentTime.Location())
 	timestamp := truncatedTime.Unix()
-	values[0] = string(timestamp)
+	values[0] = strconv.FormatInt(timestamp, 10)
+	values[1] = taskResult
 
 	var newData ExecuteData
 	newData.Params = values
 	newData.Index = data.Index
-	fmt.Printf("ExecuteData: %+v\n", newData)
 
 	jsonStr, err := json.Marshal(newData)
-	fmt.Printf("jsonStr: %+v\n", jsonStr)
+	fmt.Printf("jsonStr: %+v\n", string(jsonStr))
 
 	return string(jsonStr), err
 }
 
-type Param struct {
-	Value string `json:"value"`
-}
-
 type Data struct {
-	Params []Param `json:"params"`
-	Index  int     `json:"index"`
+	Params []string `json:"params"`
+	Index  int      `json:"index"`
 }
 
 type ExecuteData struct {
