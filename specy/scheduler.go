@@ -32,11 +32,11 @@ var (
 //	}
 //}
 
-func StartScheduler(ctx context.Context, taskHash string, calldata string, startTime time.Time, interval time.Duration) {
-	startGoroutine(ctx, goroutines, taskHash, calldata, startTime, interval)
+func StartScheduler(ctx context.Context, taskHash string, calldata string, taskCreator string, startTime time.Time, interval time.Duration) {
+	startGoroutine(ctx, goroutines, taskHash, calldata, taskCreator, startTime, interval)
 }
 
-func startGoroutine(ctx context.Context, goroutines map[string]chan struct{}, taskHash string, calldata string, startTime time.Time, interval time.Duration) {
+func startGoroutine(ctx context.Context, goroutines map[string]chan struct{}, taskHash string, calldata string, taskCreator string, startTime time.Time, interval time.Duration) {
 	stopCh := make(chan struct{})
 
 	// 存储 goroutine 对象
@@ -57,7 +57,7 @@ func startGoroutine(ctx context.Context, goroutines map[string]chan struct{}, ta
 			// 在定时任务中执行具体的操作
 			fmt.Println("定时任务触发了！")
 
-			dispatcher.ExecuteTask(ctx, taskHash, calldata)
+			dispatcher.ExecuteTask(ctx, taskHash, calldata, taskCreator)
 
 			// 重新设置定时器，按照时间间隔触发下一次定时任务
 			timer.Reset(interval)

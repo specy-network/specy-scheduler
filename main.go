@@ -32,6 +32,7 @@ func init() {
 	fmt.Println("Chain Id:", specyconfig.Config.ChainId)
 	fmt.Println("Chain Binary Location:", specyconfig.Config.ChainBinaryLocation)
 	fmt.Println("Engine Node Address:", specyconfig.Config.EngineNodeAddress)
+	fmt.Println("HomeDir:", specyconfig.Config.HomeDir)
 }
 
 func main() {

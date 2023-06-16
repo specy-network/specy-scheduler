@@ -1,6 +1,7 @@
 package dispatcher
 
 import (
+	"bytes"
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
@@ -12,28 +13,44 @@ import (
 	"time"
 )
 
-func SendTaskResponseToChain(specyResp specytypes.TaskResponse, calldata string) error {
+func SendTaskResponseToChain(specyResp specytypes.TaskResponse, calldata string, taskCreator string) error {
 	taskResult := string(specyResp.Result.TaskResult)
 	//taskResult := "FM2vKqiPHN0XCQ=="
 	//taskResult, _ = decodeTaskResult(taskResult)
-	completeCalldata, err := AssembleCalldata(calldata, taskResult)
+	completeCalldata, err := assembleCalldata(calldata, taskResult)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "specy", "execute-task", string(specyResp.Taskhash), completeCalldata, string(specyResp.RuleFileHash), string(specyResp.Signature))
-	// 执行命令并获取输出
-	output, err := cmd.Output()
+	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "specy", "execute-task", string(specyResp.Taskhash), completeCalldata, string(specyResp.RuleFileHash), string(specyResp.Signature), "--from", taskCreator, "--home", specyconfig.Config.HomeDir, "--keyring-backend", "test")
+
+	// 创建缓冲区来存储标准输出和标准错误输出
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+
+	// 将标准输出和标准错误输出连接到缓冲区
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	// 执行命令
+	err = cmd.Run()
+
 	if err != nil {
+		// 捕获到错误
+		fmt.Println("执行命令出错:", err)
+		fmt.Println("标准输出:", stdout.String())
+		fmt.Println("标准错误输出:", stderr.String())
 		return err
 	}
 
-	// 输出结果
-	fmt.Println(string(output))
+	// 执行成功
+	fmt.Println("命令执行完成")
+	fmt.Println("标准输出:", stdout.String())
+	fmt.Println("标准错误输出:", stderr.String())
 	return nil
 }
 
-func AssembleCalldata(calldata string, taskResult string) (string, error) {
+func assembleCalldata(calldata string, taskResult string) (string, error) {
 	// 解析 JSON 字符串
 	var data Data
 	err := json.Unmarshal([]byte(calldata), &data)

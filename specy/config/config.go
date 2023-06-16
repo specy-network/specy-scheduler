@@ -11,6 +11,7 @@ type SpecyConfig struct {
 	ChainId             string `yaml:"chain_id"`
 	ChainBinaryLocation string `yaml:"chain_binary_location"`
 	EngineNodeAddress   string `yaml:"engine_node_address"`
+	HomeDir             string `yaml:"home_dir"`
 }
 
 func ReadConfigFile(filePath string) (*SpecyConfig, error) {
