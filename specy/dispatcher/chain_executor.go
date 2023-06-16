@@ -22,7 +22,7 @@ func SendTaskResponseToChain(specyResp specytypes.TaskResponse, calldata string,
 		return err
 	}
 
-	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "specy", "execute-task", string(specyResp.Taskhash), completeCalldata, string(specyResp.RuleFileHash), string(specyResp.Signature), "--from", taskCreator, "--home", specyconfig.Config.HomeDir, "--keyring-backend", "test")
+	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "specy", "execute-task", string(specyResp.Taskhash), completeCalldata, string(specyResp.RuleFileHash), string(specyResp.Signature), "--from", taskCreator, "--home", specyconfig.Config.HomeDir, "--keyring-backend", "test", "--yes")
 
 	// 创建缓冲区来存储标准输出和标准错误输出
 	var stdout bytes.Buffer
