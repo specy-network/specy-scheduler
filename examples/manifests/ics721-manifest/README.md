@@ -1,4 +1,4 @@
-# Regchain transfer manifest(For bank module)
+# ics 721  manifest
 
 
 
@@ -18,14 +18,15 @@ For the list of supported networks, see the scripts in the [`package.json`](pack
 ### Query transfers
 ```
 query{
-  transfers{
+  interchainnftreceives{
     id
-    Sender
-    Receiver
-    Value
-    TokenName
-    ContractAddress
-    Timestamp
+    hash
+    sender
+    receiver
+    class_id
+    token_id
+    timestamp
+    contract_address
   }
 }
 ```
@@ -34,7 +35,7 @@ The query result
 ```
 {
   "data": {
-    "transfers": [
+    "interchainnftreceives": [
       {
         "id": "0x36c94b4355d27e8656ec587c73bcfb691484e3378f61d1098eb87af8609bbb79",
         "Sender": "reg1zaavvzxez0elundtn32qnk9lkm8kmcszydc6a7",

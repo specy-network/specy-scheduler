@@ -1,11 +1,11 @@
 specVersion: 0.0.5
-description: regchain transfer example manifest
-repository: https://github.com/RegTech-OXH/transfer-example-manifest
+description: specy module manifest
+repository: 
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: cosmos
-    name: regchain
+    name: ibc-2
     network: localnet
     source:
       startBlock: 0
@@ -16,4 +16,5 @@ dataSources:
         - Transfer
       transactionHandlers:
         - handler: handleTx
+     
       file: ./src/mapping.ts

@@ -1,6 +1,5 @@
-import { BigInt, cosmos, log, store, crypto, ByteArray } from "@graphprotocol/graph-ts";
-import { interchainnftreceive, discountnftlist } from "../generated/schema";
-import { json, JSONValueKind } from '@graphprotocol/graph-ts'
+import { BigInt, cosmos, log } from "@graphprotocol/graph-ts";
+import { interchainnftreceive } from "../generated/schema";
 
 /*
 处理transfer类event
@@ -39,27 +38,4 @@ export function handleTx(data: cosmos.TransactionData): void {
     }
   }
 }
-export function handleListProposal(data: cosmos.EventData): void {
 
-  const content_json = data.event.getAttributeValue("reward_list");
-  const contract = data.event.getAttributeValue("contract_address");
-  log.info("收到list proposal contract:{}", [contract])
-  if (contract == "ics721") {
-    log.info("符合ics721:{}", [content_json])
-    const operationType = data.event.getAttributeValue("operation_type");
-    const hash = crypto.keccak256(ByteArray.fromUTF8(content_json))
-
-    if (operationType == "insert") {
-      let list = new discountnftlist(hash.toHexString());
-      const content = json.fromString(content_json).toObject()
-
-      list.class_id = content.entries[0].value.toString();
-      list.token_id = content.entries[1].value.toString();
-      list.save();
-      log.info("收到list proposal class id:{}", [content.entries[0].value.toString()])
-      log.info("收到list proposal 消息token id:{}", [content.entries[1].value.toString()])
-    }
-  }
-
-
-}
