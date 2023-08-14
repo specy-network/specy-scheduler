@@ -1,5 +1,5 @@
-chain_id: ibc-2
-chain_binary_location:
+chain_id: test-1
+chain_binary_location: /root/gowork/bin/specyd
 engine_node_address: 127.0.0.1:50051
 home_dir:
 

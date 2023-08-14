@@ -1,4 +1,4 @@
-package dispatcher
+package executor
 
 import (
 	"bytes"
@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/cosmos/relayer/v2/specy"
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	specytypes "github.com/cosmos/relayer/v2/specy/types"
 	"os/exec"
@@ -13,16 +14,17 @@ import (
 	"time"
 )
 
-func SendTaskResponseToChain(specyResp specytypes.TaskResponse, calldata string, taskCreator string) error {
+func SendTaskResponseToChain(specyResp specytypes.TaskResponse, task *specy.Task) error {
 	taskResult := string(specyResp.Result.TaskResult)
 	//taskResult := "FM2vKqiPHN0XCQ=="
 	//taskResult, _ = decodeTaskResult(taskResult)
-	completeCalldata, err := assembleCalldata(calldata, taskResult)
+	//completeCalldata, err := assembleCalldata(task.RuleFile, taskResult)
+	_, err := assembleCalldata(task.RuleFile, taskResult)
 	if err != nil {
 		return err
 	}
 
-	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "specy", "execute-task", string(specyResp.Taskhash), completeCalldata, string(specyResp.RuleFileHash), string(specyResp.Signature), "--from", taskCreator, "--home", specyconfig.Config.HomeDir, "--keyring-backend", "test", "--yes")
+	cmd := exec.Command(specyconfig.Config.TargetChainBinaryLocation, "tx", "specy", "execute-task", task.Creator, task.TaskName, string(specyResp.Signature), string(specyResp.Result.TaskResult), "--from", task.Creator, "--chain_id", specyconfig.Config.TargetChainId, "--home", specyconfig.Config.HomeDir, "--keyring-backend", "test", "--yes")
 
 	// 创建缓冲区来存储标准输出和标准错误输出
 	var stdout bytes.Buffer
@@ -112,7 +114,7 @@ func SendProofResponseToChain(txSpecResp specytypes.ProofResponse) error {
 		fmt.Println("JSON encoding error:", err)
 		return err
 	}
-	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature))
+	cmd := exec.Command(specyconfig.Config.TargetChainBinaryLocation, "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature))
 	// 执行命令并获取输出
 	output, err := cmd.Output()
 	if err != nil {

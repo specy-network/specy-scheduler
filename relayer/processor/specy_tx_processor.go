@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
-	specydispatcher "github.com/cosmos/relayer/v2/specy/dispatcher"
+	specydispatcher "github.com/cosmos/relayer/v2/specy/executor"
 
 	"log"
 	"os/exec"
@@ -51,7 +51,7 @@ func HandleTxWithTxSpec(
 	}
 
 	// invoke specy
-	txSpecResp, err := specydispatcher.InvokeSpecyEngineWithTx(ctx, cts, txHash, msgSender, chainID, height)
+	txSpecResp, err := specydispatcher.InvokeEngineWithTx(ctx, cts, txHash, msgSender, chainID, height)
 	if err != nil {
 		log.Fatal(err)
 		return
@@ -87,7 +87,7 @@ func invokeChainWithTxSpecResponse(txSpecResp specytypes.ProofResponse, contract
 		fmt.Println("JSON encoding error:", err)
 		return err
 	}
-	cmd := exec.Command(specyconfig.Config.ChainBinaryLocation, "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature), contractAddress)
+	cmd := exec.Command(specyconfig.Config.TargetChainBinaryLocation, "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature), contractAddress)
 	// 执行命令并获取输出
 	output, err := cmd.Output()
 	if err != nil {

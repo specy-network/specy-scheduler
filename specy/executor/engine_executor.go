@@ -1,17 +1,106 @@
-package dispatcher
+package executor
 
 import (
 	"context"
 	"fmt"
-	"log"
-	"time"
-
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	"github.com/cosmos/relayer/v2/specy/types"
 	"google.golang.org/grpc"
+	"log"
+	"sync"
+	"time"
 )
 
-func InvokeSpecyEngineWithTx(
+var engineStream types.Regulator_GetTaskResultClient
+
+type Heartbeat struct {
+	isConnected bool
+	mutex       sync.Mutex
+}
+
+var instance *Heartbeat
+var once sync.Once
+
+func ConnectSpecyEngineWithHeartbeat(ctx context.Context) {
+	// 创建并缓存长连接
+	createAndCacheEngineStream(ctx, false)
+
+	// 启动心跳检测
+	go func() {
+		heartbeat := getHeartbeat()
+		heartbeat.start(ctx, 5*time.Second)
+	}()
+}
+
+func getHeartbeat() *Heartbeat {
+	once.Do(func() {
+		instance = &Heartbeat{isConnected: true}
+	})
+	return instance
+}
+
+func (hb *Heartbeat) start(ctx context.Context, interval time.Duration) {
+	ticker := time.NewTicker(interval) // 每隔interval时间发送一次心跳请求
+
+	for range ticker.C {
+		if hb.isConnected {
+			// 发送心跳请求并获取响应
+			_, err := engineStream.Recv()
+			if err == nil {
+				return
+			}
+			fmt.Println("\nGRPC stream 心跳请求无响应...")
+		}
+
+		// 如果连接中断，进行相应处理
+		fmt.Println("GRPC stream 开始重连...")
+
+		// 加锁以保证线程安全
+		hb.mutex.Lock()
+		hb.isConnected = false
+
+		// 重新创建并缓存长连接
+		stream := createAndCacheEngineStream(ctx, true)
+		if stream != nil {
+			hb.isConnected = true
+		}
+		// 解锁
+		hb.mutex.Unlock()
+	}
+}
+
+func createAndCacheEngineStream(ctx context.Context, isHeartbeat bool) types.Regulator_GetTaskResultClient {
+	engineNodeAddress := specyconfig.Config.EngineNodeAddress
+	fmt.Printf("-------------engineNodeAddress: %s \n", engineNodeAddress)
+
+	clientCon, err := grpc.Dial(engineNodeAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	if err != nil {
+		if !isHeartbeat {
+			log.Fatalf("Failed to connnect engine: %v \n", err)
+			return nil
+		}
+		log.Printf("Failed to connnect engine: %v \n", err)
+		return nil
+	}
+
+	client := types.NewRegulatorClient(clientCon)
+	fmt.Printf("-------------client: %+v \n", client)
+
+	stream, err := client.GetTaskResult(ctx)
+	fmt.Printf("-------------stream: %+v \n", stream)
+
+	if err != nil {
+		log.Fatalf("Failed to create grpc stream with engine: %v", err)
+		return nil
+	}
+
+	// 保存stream连接到全局变量
+	engineStream = stream
+
+	return stream
+}
+
+func InvokeEngineWithTx(
 	ctx context.Context,
 	cts []*types.ContractEvent,
 	txHash []byte,
@@ -52,44 +141,22 @@ func InvokeSpecyEngineWithTx(
 	return cproof, err
 }
 
-func InvokeSpecyEngineWithTask(ctx context.Context, taskHash string) (types.TaskResponse, error) {
+func InvokeEngineWithTask(taskHash string) (types.TaskResponse, error) {
 	// 构建请求
 	request := &types.TaskRequest{
 		Taskhash: []byte(taskHash),
 	}
 
-	response, err := SendTaskRequest(ctx, *request)
+	response, err := SendTaskRequest(*request)
 	return response, err
 }
 
-func SendTaskRequest(ctx context.Context, request types.TaskRequest) (types.TaskResponse, error) {
-	//如果stream失效则应该进行重新构造尝试
-	log.Default().Println("开始specy逻辑")
-	cs := getCachedEngineStream(ctx)
-	if cs == nil {
-		specyEngineAddress := specyconfig.Config.EngineNodeAddress
-		fmt.Printf("-------------specyEngineAddress: %s \n", specyEngineAddress)
-
-		clientCon, err := grpc.Dial(specyEngineAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
-		if err != nil {
-			log.Fatal(err)
-			return types.TaskResponse{}, err
-		}
-
-		client := types.NewRegulatorClient(clientCon)
-		fmt.Printf("-------------client: %+v \n", client)
-
-		stream, err := client.GetTaskResult(context.Background())
-		fmt.Printf("-------------stream: %+v \n", stream)
-
-		if err != nil {
-			return types.TaskResponse{}, err
-		}
-		ctx = cacheEngineStream(ctx, &stream)
-		cs = stream
-	}
-	cs.Send(&request)
-	resp, err := cs.Recv()
+func SendTaskRequest(request types.TaskRequest) (types.TaskResponse, error) {
+	log.Default().Println("开始engine逻辑")
+	// 获取缓存的stream
+	stream := engineStream
+	stream.Send(&request)
+	resp, err := stream.Recv()
 	fmt.Printf("-------------resp: %+v \n", resp)
 
 	if err != nil {
@@ -97,6 +164,8 @@ func SendTaskRequest(ctx context.Context, request types.TaskRequest) (types.Task
 	}
 	return *resp, nil
 }
+
+/** ---------------------------------- deprecated functions ---------------------------------- */
 
 func cacheEngineStream(ctx context.Context, stream *types.Regulator_GetTaskResultClient) context.Context {
 	specyInfoMap := *ctx.Value(types.SpecyInfoKey).(*map[string]any)

@@ -1,9 +1,9 @@
 {
   "src": {
-    "chain-id": "ibc-2"
+    "chain-id": "test-2"
   },
   "dst": {
-    "chain-id": "ibc-1"
+    "chain-id": "test-1"
   },
   "src-channel-filter": {
     "rule": null,

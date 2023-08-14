@@ -28,6 +28,7 @@ import (
 	"github.com/cosmos/relayer/v2/relayer"
 	"github.com/cosmos/relayer/v2/relayer/chains/cosmos"
 	"github.com/cosmos/relayer/v2/relayer/processor"
+	specyexecutor "github.com/cosmos/relayer/v2/specy/executor"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -144,6 +145,9 @@ $ %s start demo-path2 --max-tx-size 10`, appName, appName, appName, appName)),
 				return err
 			}
 
+			// init specy network environment
+			initSpecyNetwork(cmd.Context())
+
 			rlyErrCh := relayer.StartRelayer(
 				cmd.Context(),
 				a.log,
@@ -206,4 +210,8 @@ func GetStartOptions(cmd *cobra.Command) (uint64, uint64, error) {
 	}
 
 	return txSize * MB, msgLen, nil
+}
+
+func initSpecyNetwork(ctx context.Context) {
+	specyexecutor.ConnectSpecyEngineWithHeartbeat(ctx)
 }

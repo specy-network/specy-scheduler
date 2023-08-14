@@ -22,13 +22,23 @@ echo "waiting for blocks..."
 sleep 3
 
 # creates clients, connections and channels (all this happens in rly tx command)
+echo ""
+echo "----------  Relay Tx Link Begin ----------"
 rly tx link demo -d -t 3s
 sleep 2
-echo "--  Initial balances --"
+echo "----------  Relay Tx Link End ----------"
+echo ""
+
+echo "----------  Initial balances ----------"
 echo "balance 0 $(rly q bal ibc-2)"
 echo "balance 1 $(rly q bal ibc-1)"
 
+echo ""
+echo "----------  Start Relayer Begin ----------"
 rly start demo
+echo "----------  Start Relayer End ---------- "
+echo ""
+
 # echo "-- Sending IBC transaction... --"
 # rly tx transfer ibc-0 ibc-1 100000samoleans "$(rly keys show ibc-1)" channel-0 -d
 # sleep 5

@@ -113,7 +113,7 @@ else
 fi
 
 
-if [ $CHAINID = 'ibc-2' ]; then
+if [ $CHAINID = 'test-2' ]; then
 cat << END >> $CHAINDIR/$CHAINID/config/config.toml
 
 #######################################################

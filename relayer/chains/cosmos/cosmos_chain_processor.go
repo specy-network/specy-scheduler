@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/cosmos/relayer/v2/specy"
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	"math/big"
 	"time"
@@ -315,6 +316,8 @@ func (ccp *CosmosChainProcessor) initializeChannelState(ctx context.Context) err
 
 func (ccp *CosmosChainProcessor) queryCycle(ctx context.Context, persistence *queryCyclePersistence) error {
 	status, err := ccp.nodeStatusWithRetry(ctx)
+	ccp.log.Info("-----------LatestBlockHeight------------", zap.Int64("height", status.SyncInfo.LatestBlockHeight))
+
 	if err != nil {
 		// don't want to cause CosmosChainProcessor to quit here, can retry again next cycle.
 		ccp.log.Error(
@@ -412,7 +415,7 @@ func (ccp *CosmosChainProcessor) queryCycle(ctx context.Context, persistence *qu
 		ppChanged = true
 
 		chainId := ccp.chainProvider.ChainId()
-		//if isSpecyNetwork(chainId) {
+		//if isTargetNetwork(chainId) {
 		//	// handle txs
 		//	for txIndex, tx := range blockRes.TxsResults {
 		//		// specy
@@ -421,7 +424,10 @@ func (ccp *CosmosChainProcessor) queryCycle(ctx context.Context, persistence *qu
 		//	}
 		//}
 
-		// collect events
+		// deal with each block
+		specy.TriggerEveryBlockTasks()
+
+		// collect events and deal
 		var events []abci.Event
 		events = append(events, blockRes.BeginBlockEvents...)
 		events = append(events, blockRes.EndBlockEvents...)
@@ -443,9 +449,9 @@ func (ccp *CosmosChainProcessor) queryCycle(ctx context.Context, persistence *qu
 			return nil
 		})
 		eg.Go(func() error {
-			if isSpecyNetwork(chainId) {
+			if isTargetNetwork(chainId) {
 				// specy
-				processor.HandleEventWithSpecy(ctx, ccp.log, events, chainID, heightUint64, base64Encoded)
+				processor.HandleEventWithSpecy(events, base64Encoded)
 			}
 			return nil
 		})
@@ -544,6 +550,6 @@ func (ccp *CosmosChainProcessor) CurrentRelayerBalance(ctx context.Context) {
 	}
 }
 
-func isSpecyNetwork(chainId string) bool {
-	return chainId == specyconfig.Config.ChainId
+func isTargetNetwork(chainId string) bool {
+	return chainId == specyconfig.Config.TargetChainId
 }

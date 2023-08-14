@@ -3,7 +3,6 @@ package processor
 import (
 	"context"
 
-	specytypes "github.com/cosmos/relayer/v2/specy/types"
 	"golang.org/x/sync/errgroup"
 )
 
@@ -87,9 +86,6 @@ func (ep EventProcessor) Run(ctx context.Context) error {
 	var eg errgroup.Group
 	runCtx, runCtxCancel := context.WithCancel(ctx)
 
-	// initialize TxSpec global information in context
-	runCtx = initGlobalInfoForTxSpec(runCtx)
-
 	for _, pathProcessor := range ep.pathProcessors {
 		pathProcessor := pathProcessor
 		eg.Go(func() error {
@@ -109,18 +105,4 @@ func (ep EventProcessor) Run(ctx context.Context) error {
 	err := eg.Wait()
 	runCtxCancel()
 	return err
-}
-
-func initGlobalInfoForTxSpec(ctx context.Context) context.Context {
-	specyInfoMap := make(map[string]any)
-	contractNameDict := make(map[string]bool)
-
-	// TODO query regulatory relation info
-	contractNameDict["ics721"] = true // hardcode
-	specyInfoMap[specytypes.ContractNameDictKey] = &contractNameDict
-
-	// TODO query regulatory register info
-	specyInfoMap[specytypes.RegistrationEndpointKey] = "127.0.0.1:50051" // hardcode
-
-	return context.WithValue(ctx, specytypes.SpecyInfoKey, &specyInfoMap)
 }

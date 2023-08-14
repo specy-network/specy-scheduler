@@ -8,5 +8,11 @@ The main processes are as follows:
 1. Listen on-chain events  
 2. Task management
 3. Schedule task & Invoke Engine
-4. Execute task on-chain
+4. Execute task result on-chain
 
+To run:
+
+```bash
+cd examples/specy_demo/
+./dev-env
+```
