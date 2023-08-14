@@ -23,12 +23,3 @@ type interchainnftreceive @entity{
   "contract address ：ics721"
   contract_address: String!
 }
-
-type discountnftlist @entity{
-  " { Transaction hash }"
-  id: ID!
-  " class_id associated with the NFT, similar to the contract address of ERC721"
-  class_id:String!
-  " token_id is a unique identifier of the NFT"
-  token_id:String!
-}

@@ -1,11 +1,11 @@
 specVersion: 0.0.5
-description: ics721  manifest
+description: specy module manifest
 repository: 
 schema:
   file: ./schema.graphql
 dataSources:
   - kind: cosmos
-    name: ibc-2
+    name: specy
     network: localnet
     source:
       startBlock: 0
@@ -13,8 +13,8 @@ dataSources:
       apiVersion: 0.0.7
       language: wasm/assemblyscript
       entities:
-        - Transfer
-      transactionHandlers:
-        - handler: handleTx
-     
+        - task
+      eventHandlers:
+        - event: create_task
+          handler: handleTaskEvent
       file: ./src/mapping.ts

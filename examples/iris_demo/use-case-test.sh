@@ -90,7 +90,7 @@ create_task(){
     $CHAIN_BINARY tx specy create-task \
     rewards SetRewards \
     "{\"params\":[\"1686639600\",\"329d9b874ed90126d153f13cb6222f5a35c12232343f81066429d0af58c2f3da\"],\"index\":1}" \
-    true "fsadfsafdsafdsafsaf" \
+    false "{\"rule nft_white_list\":[\"count on interchainnft where interchainnft.token_id in nft_reward_list after 2023-01-01T00:00:00+08:00 within 1 days\"]}" \
     --from $($CHAIN_BINARY --home ./data/ibc-2 keys show validator --keyring-backend test -a) \
         --keyring-backend test \
         --gas auto \
@@ -112,7 +112,7 @@ execute_task(){
 }
 set_reward_list(){
     $CHAIN_BINARY tx rewards set-reward-list \
-        token1,token2 \
+        class222 \
         --chain-id $CHAIN_ID \
         --from $($CHAIN_BINARY --home ./data/ibc-2 keys show validator --keyring-backend test -a) \
         --keyring-backend test \
@@ -122,7 +122,7 @@ set_reward_list(){
 
 claim(){
     $CHAIN_BINARY tx rewards claim \
-        36738d5a9677d0083dce95bc9135c1de689a0858f685ce1b6d8dd60d446c5b84,d0bd392e0dcd8b2ee147a774f12d2766b1811762dd772d322aa007f993204e2b \
+        d0bd392e0dcd8b2ee147a774f12d2766b1811762dd772d322aa007f993204e2b \
         --chain-id $CHAIN_ID \
         --from $($CHAIN_BINARY --home ./data/ibc-2 keys show validator --keyring-backend test -a) \
         --keyring-backend test \
