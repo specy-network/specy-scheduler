@@ -7,8 +7,8 @@ import (
 
 	transfertypes "github.com/cosmos/ibc-go/v7/modules/apps/transfer/types"
 	relayerinterchaintest "github.com/cosmos/relayer/v2/interchaintest"
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/processor"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/processor"
 	interchaintest "github.com/strangelove-ventures/interchaintest/v7"
 	"github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
@@ -39,7 +39,7 @@ func TestScenarioPathFilterAllow(t *testing.T) {
 
 	// Relayer Factory to construct relayer
 	r := relayerinterchaintest.NewRelayerFactory(relayerinterchaintest.RelayerConfig{
-		Processor:           relayer.ProcessorEvents,
+		Processor:           scheduler.ProcessorEvents,
 		InitialBlockHistory: 100,
 	}).Build(t, nil, "")
 
@@ -177,7 +177,7 @@ func TestScenarioPathFilterDeny(t *testing.T) {
 
 	// Relayer Factory to construct relayer
 	r := relayerinterchaintest.NewRelayerFactory(relayerinterchaintest.RelayerConfig{
-		Processor:           relayer.ProcessorEvents,
+		Processor:           scheduler.ProcessorEvents,
 		InitialBlockHistory: 100,
 	}).Build(t, nil, "")
 

@@ -39,7 +39,7 @@ import (
 
 const (
 	MB      = 1024 * 1024 // in bytes
-	appName = "rly"
+	appName = "sch"
 )
 
 var defaultHome = filepath.Join(os.Getenv("HOME"), ".relayer")
@@ -124,6 +124,7 @@ func NewRootCmd(log *zap.Logger) *cobra.Command {
 		startCmd(a),
 		lineBreakCommand(),
 		getVersionCmd(a),
+		executorCmd(a),
 	)
 
 	return rootCmd

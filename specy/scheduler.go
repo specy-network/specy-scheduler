@@ -2,69 +2,44 @@ package specy
 
 import (
 	"fmt"
-	"github.com/cosmos/relayer/v2/specy/executor"
+
+	specyexecutor "github.com/cosmos/relayer/v2/specy/executor"
+	specytypes "github.com/cosmos/relayer/v2/specy/types"
+
 	"sync"
 	"time"
 )
 
 var (
-	everyBlockTasks            = make(map[string]*Task)
+	everyBlockTasks            = make(map[string]*specytypes.Task)
 	timeIntervalTaskGoroutines = make(map[string]chan struct{})
 )
 
-type Task struct {
-	TaskHash     string
-	TaskName     string
-	Creator      string
-	ConnectionId string
-	Msgs         string
-	RuleFile     string
-	TaskType     string
-
-	Condition Condition
-}
-
-type Condition struct {
-	IntervalType string
-	Interval     int
-
-	StartTime time.Time
-}
-
-func NewTask(taskHash string, taskName string, creator string, connectionId string, msgs string, ruleFile string, taskType string, intervalType string, interval int, startTime time.Time) *Task {
-
-	return &Task{
-		TaskHash:     taskHash,
-		TaskName:     taskName,
-		Creator:      creator,
-		ConnectionId: connectionId,
-		Msgs:         msgs,
-		RuleFile:     ruleFile,
-		TaskType:     taskType,
-
-		Condition: Condition{
-			intervalType,
-			interval,
-			startTime,
-		},
+func CreateExecutor(iasReport string, enclavePK string) {
+	if len(iasReport) == 0 && len(enclavePK) == 0 {
+		// 命令行和配置文件都没有指定 调用engine接口查询 TODO
 	}
+	specyexecutor.CreateExecutorOnChain(iasReport, enclavePK)
 }
 
-func RegisterTask(task *Task) {
+func RegisterTask(task *specytypes.Task) {
+	fmt.Printf("IntervalType %s \n", task.Condition.IntervalType)
+
 	switch task.Condition.IntervalType {
-	case "time_interval":
+	case "1":
 		// 直接触发 task (goroutine)
 		triggerTimeIntervalTask(task)
 
-	case "every_block":
+	case "0":
 		// 将 task 注册到任务列表中 待爬区块的时候遍历触发
+		fmt.Printf("将 task: %s 注册到任务列表中 待爬区块的时候遍历触发\n task: %+v \n", task.TaskHash, task)
 		everyBlockTasks[task.TaskHash] = task
 	default:
 		fmt.Println("unsupportted task type")
 	}
 }
 
-func triggerTimeIntervalTask(task *Task) {
+func triggerTimeIntervalTask(task *specytypes.Task) {
 	stopCh := make(chan struct{})
 
 	// 存储 goroutine 对象
@@ -83,7 +58,7 @@ func triggerTimeIntervalTask(task *Task) {
 			// 在定时任务中执行具体的操作
 			fmt.Println("定时任务触发了！")
 
-			executor.ExecuteTask(task)
+			specyexecutor.ExecuteTask(task)
 
 			// 重新设置定时器，按照时间间隔触发下一次定时任务
 			timer.Reset(time.Duration(task.Condition.Interval) * time.Second)
@@ -102,7 +77,7 @@ func triggerTimeIntervalTask(task *Task) {
 func TriggerEveryBlockTasks() {
 
 	// 将task放到数组中 方便后续操作
-	tasks := make([]*Task, 0, len(everyBlockTasks))
+	tasks := make([]*specytypes.Task, 0, len(everyBlockTasks))
 	for _, task := range everyBlockTasks {
 		tasks = append(tasks, task)
 	}
@@ -126,7 +101,16 @@ func TriggerEveryBlockTasks() {
 	}
 }
 
-func processTriggerEveryBlockTask(tasks []*Task) {
+func processTriggerEveryBlockTask(tasks []*specytypes.Task) {
+	if len(tasks) == 0 {
+		return
+	}
+	if len(tasks) == 1 {
+		fmt.Printf("Processing task: %+v \n", tasks[0])
+		specyexecutor.ExecuteTask(tasks[0])
+		return
+	}
+
 	var wg sync.WaitGroup
 	defer wg.Done()
 
@@ -135,11 +119,11 @@ func processTriggerEveryBlockTask(tasks []*Task) {
 	for _, task := range tasks {
 		itemWg.Add(1)
 
-		go func(task *Task) {
+		go func(task *specytypes.Task) {
 			defer itemWg.Done()
 
-			fmt.Println("Processing task:", task)
-			executor.ExecuteTask(task)
+			fmt.Printf("Processing task: %+v \n", task)
+			specyexecutor.ExecuteTask(task)
 
 		}(task)
 	}

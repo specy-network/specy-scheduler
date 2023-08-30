@@ -29,10 +29,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/chains/cosmos"
-	"github.com/cosmos/relayer/v2/relayer/chains/penumbra"
-	"github.com/cosmos/relayer/v2/relayer/provider"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/chains/cosmos"
+	"github.com/cosmos/relayer/v2/scheduler/chains/penumbra"
+	"github.com/cosmos/relayer/v2/scheduler/provider"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
@@ -212,7 +212,7 @@ func addChainsFromDirectory(ctx context.Context, stderr io.Writer, a *appState, 
 				continue
 			}
 
-			c := relayer.NewChain(a.log, prov, a.debug)
+			c := scheduler.NewChain(a.log, prov, a.debug)
 			if err = a.config.AddChain(c); err != nil {
 				fmt.Fprintf(stderr, "failed to add chain %s: %v \n", pth, err)
 				continue
@@ -247,7 +247,7 @@ func addPathsFromDirectory(ctx context.Context, stderr io.Writer, a *appState, d
 				return fmt.Errorf("failed to read file %s: %w", pth, err)
 			}
 
-			p := &relayer.Path{}
+			p := &scheduler.Path{}
 			if err = json.Unmarshal(byt, p); err != nil {
 				return fmt.Errorf("failed to unmarshal file %s: %w", pth, err)
 			}
@@ -309,29 +309,29 @@ func (c *Config) memo(cmd *cobra.Command) string {
 
 // Config represents the config file for the relayer
 type Config struct {
-	Global GlobalConfig   `yaml:"global" json:"global"`
-	Chains relayer.Chains `yaml:"chains" json:"chains"`
-	Paths  relayer.Paths  `yaml:"paths" json:"paths"`
+	Global GlobalConfig     `yaml:"global" json:"global"`
+	Chains scheduler.Chains `yaml:"chains" json:"chains"`
+	Paths  scheduler.Paths  `yaml:"paths" json:"paths"`
 }
 
 // ConfigOutputWrapper is an intermediary type for writing the config to disk and stdout
 type ConfigOutputWrapper struct {
 	Global          GlobalConfig    `yaml:"global" json:"global"`
 	ProviderConfigs ProviderConfigs `yaml:"chains" json:"chains"`
-	Paths           relayer.Paths   `yaml:"paths" json:"paths"`
+	Paths           scheduler.Paths `yaml:"paths" json:"paths"`
 }
 
 // ConfigInputWrapper is an intermediary type for parsing the config.yaml file
 type ConfigInputWrapper struct {
 	Global          GlobalConfig                          `yaml:"global"`
 	ProviderConfigs map[string]*ProviderConfigYAMLWrapper `yaml:"chains"`
-	Paths           relayer.Paths                         `yaml:"paths"`
+	Paths           scheduler.Paths                       `yaml:"paths"`
 }
 
 // RuntimeConfig converts the input disk config into the relayer runtime config.
 func (c *ConfigInputWrapper) RuntimeConfig(ctx context.Context, a *appState) (*Config, error) {
 	// build providers for each chain
-	chains := make(relayer.Chains)
+	chains := make(scheduler.Chains)
 	for chainName, pcfg := range c.ProviderConfigs {
 		prov, err := pcfg.Value.(provider.ProviderConfig).NewProvider(
 			a.log.With(zap.String("provider_type", pcfg.Type)),
@@ -345,7 +345,7 @@ func (c *ConfigInputWrapper) RuntimeConfig(ctx context.Context, a *appState) (*C
 			return nil, fmt.Errorf("failed to initialize provider: %w", err)
 		}
 
-		chain := relayer.NewChain(a.log, prov, a.debug)
+		chain := scheduler.NewChain(a.log, prov, a.debug)
 		chains[chainName] = chain
 	}
 
@@ -438,7 +438,7 @@ func (iw *ProviderConfigYAMLWrapper) UnmarshalYAML(n *yaml.Node) error {
 }
 
 // ChainsFromPath takes the path name and returns the properly configured chains
-func (c *Config) ChainsFromPath(path string) (map[string]*relayer.Chain, string, string, error) {
+func (c *Config) ChainsFromPath(path string) (map[string]*scheduler.Chain, string, string, error) {
 	pth, err := c.Paths.Get(path)
 	if err != nil {
 		return nil, "", "", err
@@ -476,8 +476,8 @@ func defaultConfigYAML(memo string) []byte {
 func DefaultConfig(memo string) *Config {
 	return &Config{
 		Global: newDefaultGlobalConfig(memo),
-		Chains: make(relayer.Chains),
-		Paths:  make(relayer.Paths),
+		Chains: make(scheduler.Chains),
+		Paths:  make(scheduler.Paths),
 	}
 }
 
@@ -500,16 +500,19 @@ func newDefaultGlobalConfig(memo string) GlobalConfig {
 }
 
 // AddChain adds an additional chain to the config
-func (c *Config) AddChain(chain *relayer.Chain) (err error) {
+func (c *Config) AddChain(chain *scheduler.Chain) (err error) {
 	chainId := chain.ChainProvider.ChainId()
 	if chainId == "" {
 		return fmt.Errorf("chain ID cannot be empty")
 	}
-	chn, err := c.Chains.Get(chainId)
-	if chn != nil || err == nil {
-		return fmt.Errorf("chain with ID %s already exists in config", chainId)
+
+	chains := c.Chains
+	if chains == nil {
+		chains = map[string]*scheduler.Chain{}
 	}
-	c.Chains[chain.ChainProvider.ChainName()] = chain
+
+	chains[chainId] = chain
+	c.Chains = chains
 	return nil
 }
 
@@ -523,7 +526,7 @@ func checkPathConflict(pathID, fieldName, oldP, newP string) (err error) {
 	return nil
 }
 
-func checkPathEndConflict(pathID, direction string, oldPe, newPe *relayer.PathEnd) (err error) {
+func checkPathEndConflict(pathID, direction string, oldPe, newPe *scheduler.PathEnd) (err error) {
 	if err = checkPathConflict(
 		pathID, direction+" chain ID",
 		oldPe.ChainID, newPe.ChainID); err != nil {
@@ -544,10 +547,10 @@ func checkPathEndConflict(pathID, direction string, oldPe, newPe *relayer.PathEn
 }
 
 // AddPath adds an additional path to the config
-func (c *Config) AddPath(name string, path *relayer.Path) (err error) {
+func (c *Config) AddPath(name string, path *scheduler.Path) (err error) {
 	// Ensure path is initialized.
 	if c.Paths == nil {
-		c.Paths = make(relayer.Paths)
+		c.Paths = make(scheduler.Paths)
 	}
 	// Check if the path does not yet exist.
 	oldPath, err := c.Paths.Get(name)
@@ -589,7 +592,7 @@ func (c *Config) validateConfig() error {
 }
 
 // ValidatePath checks that a path is valid
-func (c *Config) ValidatePath(ctx context.Context, stderr io.Writer, p *relayer.Path) (err error) {
+func (c *Config) ValidatePath(ctx context.Context, stderr io.Writer, p *scheduler.Path) (err error) {
 	if err = c.ValidatePathEnd(ctx, stderr, p.Src); err != nil {
 		return fmt.Errorf("chain %s failed path validation: %w", p.Src.ChainID, err)
 	}
@@ -600,7 +603,7 @@ func (c *Config) ValidatePath(ctx context.Context, stderr io.Writer, p *relayer.
 }
 
 // ValidatePathEnd validates provided pathend and returns error for invalid identifiers
-func (c *Config) ValidatePathEnd(ctx context.Context, stderr io.Writer, pe *relayer.PathEnd) error {
+func (c *Config) ValidatePathEnd(ctx context.Context, stderr io.Writer, pe *scheduler.PathEnd) error {
 	chain, err := c.Chains.Get(pe.ChainID)
 	if err != nil {
 		fmt.Fprintf(stderr, "Chain %s is not currently configured.\n", pe.ChainID)
@@ -643,7 +646,7 @@ func (c *Config) ValidatePathEnd(ctx context.Context, stderr io.Writer, pe *rela
 }
 
 // ValidateClient validates client id in provided pathend
-func (c *Config) ValidateClient(ctx context.Context, chain *relayer.Chain, height int64, pe *relayer.PathEnd) error {
+func (c *Config) ValidateClient(ctx context.Context, chain *scheduler.Chain, height int64, pe *scheduler.PathEnd) error {
 	if err := pe.Vclient(); err != nil {
 		return err
 	}
@@ -657,7 +660,7 @@ func (c *Config) ValidateClient(ctx context.Context, chain *relayer.Chain, heigh
 }
 
 // ValidateConnection validates connection id in provided pathend
-func (c *Config) ValidateConnection(ctx context.Context, chain *relayer.Chain, height int64, pe *relayer.PathEnd) error {
+func (c *Config) ValidateConnection(ctx context.Context, chain *scheduler.Chain, height int64, pe *scheduler.PathEnd) error {
 	if err := pe.Vconn(); err != nil {
 		return err
 	}

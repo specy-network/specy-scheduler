@@ -9,7 +9,7 @@ import (
 	"os"
 	"path"
 
-	"github.com/cosmos/relayer/v2/relayer"
+	"github.com/cosmos/relayer/v2/scheduler"
 	"github.com/gofrs/flock"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
@@ -85,7 +85,7 @@ func (a *appState) addPathFromFile(ctx context.Context, stderr io.Writer, file, 
 		return err
 	}
 
-	p := &relayer.Path{}
+	p := &scheduler.Path{}
 	if err = json.Unmarshal(byt, &p); err != nil {
 		return err
 	}
@@ -111,11 +111,11 @@ func (a *appState) addPathFromUserInput(
 	var (
 		value string
 		err   error
-		path  = &relayer.Path{
-			Src: &relayer.PathEnd{
+		path  = &scheduler.Path{
+			Src: &scheduler.PathEnd{
 				ChainID: src,
 			},
-			Dst: &relayer.PathEnd{
+			Dst: &scheduler.PathEnd{
 				ChainID: dst,
 			},
 		}

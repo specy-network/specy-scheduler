@@ -8,8 +8,8 @@ import (
 	"path"
 	"strings"
 
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/processor"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/processor"
 	"github.com/google/go-github/v43/github"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v3"
@@ -112,7 +112,7 @@ $ %s pth l`, appName, appName, appName)),
 	return yamlFlag(a.viper, jsonFlag(a.viper, cmd))
 }
 
-func printPath(stdout io.Writer, i int, k string, pth *relayer.Path, chains, clients, connection string) {
+func printPath(stdout io.Writer, i int, k string, pth *scheduler.Path, chains, clients, connection string) {
 	fmt.Fprintf(stdout, "%2d: %-20s -> chns(%s) clnts(%s) conn(%s) (%s<>%s)\n",
 		i, k, chains, clients, connection, pth.Src.ChainID, pth.Dst.ChainID)
 }
@@ -249,9 +249,9 @@ $ %s pth n ibc-0 ibc-1 demo-path`, appName, appName)),
 					return fmt.Errorf("chains need to be configured before paths to them can be added: %w", err)
 				}
 
-				p := &relayer.Path{
-					Src: &relayer.PathEnd{ChainID: src},
-					Dst: &relayer.PathEnd{ChainID: dst},
+				p := &scheduler.Path{
+					Src: &scheduler.PathEnd{ChainID: src},
+					Dst: &scheduler.PathEnd{ChainID: dst},
 				}
 
 				name := args[2]
@@ -421,7 +421,7 @@ $ %s pth fch`, appName, defaultHome, appName)),
 						return fmt.Errorf("error reading response body: %w", err)
 					}
 
-					ibc := &relayer.IBCdata{}
+					ibc := &scheduler.IBCdata{}
 					if err = json.Unmarshal(b, &ibc); err != nil {
 						return fmt.Errorf("failed to unmarshal: %w ", err)
 					}
@@ -429,17 +429,17 @@ $ %s pth fch`, appName, defaultHome, appName)),
 					srcChainName := ibc.Chain1.ChainName
 					dstChainName := ibc.Chain2.ChainName
 
-					srcPathEnd := &relayer.PathEnd{
+					srcPathEnd := &scheduler.PathEnd{
 						ChainID:      a.config.Chains[srcChainName].ChainID(),
 						ClientID:     ibc.Chain1.ClientID,
 						ConnectionID: ibc.Chain1.ConnectionID,
 					}
-					dstPathEnd := &relayer.PathEnd{
+					dstPathEnd := &scheduler.PathEnd{
 						ChainID:      a.config.Chains[dstChainName].ChainID(),
 						ClientID:     ibc.Chain2.ClientID,
 						ConnectionID: ibc.Chain2.ConnectionID,
 					}
-					newPath := &relayer.Path{
+					newPath := &scheduler.Path{
 						Src: srcPathEnd,
 						Dst: dstPathEnd,
 					}

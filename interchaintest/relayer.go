@@ -11,9 +11,9 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keyring"
 	"github.com/cosmos/relayer/v2/cmd"
 	"github.com/cosmos/relayer/v2/internal/relayertest"
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/chains/cosmos"
-	"github.com/cosmos/relayer/v2/relayer/provider"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/chains/cosmos"
+	"github.com/cosmos/relayer/v2/scheduler/provider"
 	interchaintestcosmos "github.com/strangelove-ventures/interchaintest/v7/chain/cosmos"
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
 	"github.com/strangelove-ventures/interchaintest/v7/relayer/rly"
@@ -250,14 +250,14 @@ func (r *Relayer) UpdateClients(ctx context.Context, _ ibc.RelayerExecReporter, 
 
 func (r *Relayer) StartRelayer(ctx context.Context, _ ibc.RelayerExecReporter, pathNames ...string) error {
 	if r.errCh != nil || r.cancel != nil {
-		panic(fmt.Errorf("StartRelayer called multiple times without being stopped"))
+		panic(fmt.Errorf("StartListener called multiple times without being stopped"))
 	}
 
 	r.errCh = make(chan error, 1)
 	ctx, r.cancel = context.WithCancel(ctx)
 
 	if r.config.Processor == "" {
-		r.config.Processor = relayer.ProcessorEvents
+		r.config.Processor = scheduler.ProcessorEvents
 	}
 	args := append([]string{
 		"--processor", r.config.Processor,

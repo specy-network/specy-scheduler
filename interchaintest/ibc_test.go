@@ -5,7 +5,7 @@ import (
 	"testing"
 
 	relayerinterchaintest "github.com/cosmos/relayer/v2/interchaintest"
-	"github.com/cosmos/relayer/v2/relayer"
+	"github.com/cosmos/relayer/v2/scheduler"
 	interchaintest "github.com/strangelove-ventures/interchaintest/v7"
 	"github.com/strangelove-ventures/interchaintest/v7/conformance"
 	"github.com/strangelove-ventures/interchaintest/v7/ibc"
@@ -84,7 +84,7 @@ func TestRelayerEventProcessor(t *testing.T) {
 	t.Parallel()
 
 	interchaintestConformance(t, relayerinterchaintest.NewRelayerFactory(relayerinterchaintest.RelayerConfig{
-		Processor:           relayer.ProcessorEvents,
+		Processor:           scheduler.ProcessorEvents,
 		InitialBlockHistory: 0,
 	}))
 }
@@ -96,6 +96,6 @@ func TestRelayerLegacyProcessor(t *testing.T) {
 	t.Parallel()
 
 	interchaintestConformance(t, relayerinterchaintest.NewRelayerFactory(relayerinterchaintest.RelayerConfig{
-		Processor: relayer.ProcessorLegacy,
+		Processor: scheduler.ProcessorLegacy,
 	}))
 }

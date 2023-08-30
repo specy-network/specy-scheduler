@@ -11,7 +11,7 @@ import (
 	"net/url"
 	"time"
 
-	"github.com/cosmos/relayer/v2/relayer/chains/cosmos"
+	"github.com/cosmos/relayer/v2/scheduler/chains/cosmos"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cosmos/relayer/v2/relayer"
+	"github.com/cosmos/relayer/v2/scheduler"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -263,7 +263,7 @@ func retryFlag(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
 }
 
 func updateTimeFlags(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().Duration(flagThresholdTime, relayer.DefaultClientUpdateThreshold, "time after previous client update before automatic client update")
+	cmd.Flags().Duration(flagThresholdTime, scheduler.DefaultClientUpdateThreshold, "time after previous client update before automatic client update")
 	if err := v.BindPFlag(flagThresholdTime, cmd.Flags().Lookup(flagThresholdTime)); err != nil {
 		panic(err)
 	}
@@ -341,7 +341,7 @@ func debugServerFlags(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
 }
 
 func processorFlag(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().StringP(flagProcessor, "p", relayer.ProcessorEvents, "which relayer processor to use")
+	cmd.Flags().StringP(flagProcessor, "p", scheduler.ProcessorEvents, "which relayer processor to use")
 	if err := v.BindPFlag(flagProcessor, cmd.Flags().Lookup(flagProcessor)); err != nil {
 		panic(err)
 	}
@@ -357,7 +357,7 @@ func initBlockFlag(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
 }
 
 func flushIntervalFlag(v *viper.Viper, cmd *cobra.Command) *cobra.Command {
-	cmd.Flags().DurationP(flagFlushInterval, "i", relayer.DefaultFlushInterval, "how frequently should a flush routine be run")
+	cmd.Flags().DurationP(flagFlushInterval, "i", scheduler.DefaultFlushInterval, "how frequently should a flush routine be run")
 	if err := v.BindPFlag(flagFlushInterval, cmd.Flags().Lookup(flagFlushInterval)); err != nil {
 		panic(err)
 	}

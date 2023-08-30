@@ -10,8 +10,8 @@ import (
 	"github.com/cosmos/cosmos-sdk/client"
 	"github.com/cosmos/cosmos-sdk/types/query"
 	chantypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/chains/cosmos"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/chains/cosmos"
 	"github.com/spf13/cobra"
 )
 
@@ -237,7 +237,7 @@ $ %s query balance ibc-0 testkey`,
 				return err
 			}
 
-			coins, err := relayer.QueryBalance(cmd.Context(), chain, addr, showDenoms)
+			coins, err := scheduler.QueryBalance(cmd.Context(), chain, addr, showDenoms)
 			if err != nil {
 				return err
 			}
@@ -696,7 +696,7 @@ type chanExtendedInfo struct {
 
 func printChannelWithExtendedInfo(
 	cmd *cobra.Command,
-	chain *relayer.Chain,
+	chain *scheduler.Chain,
 	channel *chantypes.IdentifiedChannel,
 	extendedInfo *chanExtendedInfo) {
 	s, err := chain.ChainProvider.Sprint(channel)
@@ -736,7 +736,7 @@ func printChannelWithExtendedInfo(
 
 const concurrentQueries = 10
 
-func queryChannelsToChain(cmd *cobra.Command, chain *relayer.Chain, dstChain *relayer.Chain) error {
+func queryChannelsToChain(cmd *cobra.Command, chain *scheduler.Chain, dstChain *scheduler.Chain) error {
 	ctx := cmd.Context()
 
 	clients, err := chain.ChainProvider.QueryClients(ctx)
@@ -745,7 +745,7 @@ func queryChannelsToChain(cmd *cobra.Command, chain *relayer.Chain, dstChain *re
 	}
 
 	for _, client := range clients {
-		clientInfo, err := relayer.ClientInfoFromClientState(client.ClientState)
+		clientInfo, err := scheduler.ClientInfoFromClientState(client.ClientState)
 		if err != nil {
 			continue
 		}
@@ -787,7 +787,7 @@ func queryChannelsToChain(cmd *cobra.Command, chain *relayer.Chain, dstChain *re
 	return nil
 }
 
-func queryChannelsPaginated(cmd *cobra.Command, chain *relayer.Chain, pageReq *query.PageRequest) error {
+func queryChannelsPaginated(cmd *cobra.Command, chain *scheduler.Chain, pageReq *query.PageRequest) error {
 	var chans []*chantypes.IdentifiedChannel
 	var next []byte
 	var err error
@@ -831,7 +831,7 @@ func queryChannelsPaginated(cmd *cobra.Command, chain *relayer.Chain, pageReq *q
 			if err != nil {
 				return
 			}
-			clientInfo, err := relayer.ClientInfoFromClientState(client.ClientState)
+			clientInfo, err := scheduler.ClientInfoFromClientState(client.ClientState)
 			if err != nil {
 				return
 			}
@@ -981,12 +981,12 @@ $ %s query unrelayed-pkts demo-path channel-0`,
 			}
 
 			channelID := args[1]
-			channel, err := relayer.QueryChannel(cmd.Context(), c[src], channelID)
+			channel, err := scheduler.QueryChannel(cmd.Context(), c[src], channelID)
 			if err != nil {
 				return err
 			}
 
-			sp := relayer.UnrelayedSequences(cmd.Context(), c[src], c[dst], channel)
+			sp := scheduler.UnrelayedSequences(cmd.Context(), c[src], c[dst], channel)
 
 			out, err := json.Marshal(sp)
 			if err != nil {
@@ -1033,12 +1033,12 @@ $ %s query unrelayed-acks demo-path channel-0`,
 			}
 
 			channelID := args[1]
-			channel, err := relayer.QueryChannel(cmd.Context(), c[src], channelID)
+			channel, err := scheduler.QueryChannel(cmd.Context(), c[src], channelID)
 			if err != nil {
 				return err
 			}
 
-			sp := relayer.UnrelayedAcknowledgements(cmd.Context(), c[src], c[dst], channel)
+			sp := scheduler.UnrelayedAcknowledgements(cmd.Context(), c[src], c[dst], channel)
 
 			out, err := json.Marshal(sp)
 			if err != nil {
@@ -1080,17 +1080,17 @@ $ %s query clients-expiration demo-path`,
 				return err
 			}
 
-			srcExpiration, err := relayer.QueryClientExpiration(cmd.Context(), c[src], c[dst])
+			srcExpiration, err := scheduler.QueryClientExpiration(cmd.Context(), c[src], c[dst])
 			if err != nil {
 				return err
 			}
-			dstExpiration, err := relayer.QueryClientExpiration(cmd.Context(), c[dst], c[src])
+			dstExpiration, err := scheduler.QueryClientExpiration(cmd.Context(), c[dst], c[src])
 			if err != nil {
 				return err
 			}
 
-			fmt.Fprintf(cmd.OutOrStdout(), relayer.SPrintClientExpiration(c[src], srcExpiration))
-			fmt.Fprintf(cmd.OutOrStdout(), relayer.SPrintClientExpiration(c[dst], dstExpiration))
+			fmt.Fprintf(cmd.OutOrStdout(), scheduler.SPrintClientExpiration(c[src], srcExpiration))
+			fmt.Fprintf(cmd.OutOrStdout(), scheduler.SPrintClientExpiration(c[dst], dstExpiration))
 
 			return nil
 		},

@@ -33,7 +33,7 @@ func TestScenarioClientThresholdUpdate(t *testing.T) {
 
 	// Chain Factory
 	cf := interchaintest.NewBuiltinChainFactory(zaptest.NewLogger(t), []*interchaintest.ChainSpec{
-		// Two otherwise identical chains that only differ by ChainName and ChainID.
+		// Two otherwise identical chains that only differ by ChainId and ChainID.
 		{Name: "gaia", ChainName: "g0", Version: "v7.0.3", NumValidators: &nv, NumFullNodes: &nf, ChainConfig: ibc.ChainConfig{ChainID: g0ChainId}},
 		{Name: "gaia", ChainName: "g1", Version: "v7.0.3", NumValidators: &nv, NumFullNodes: &nf, ChainConfig: ibc.ChainConfig{ChainID: g1ChainId}},
 	})

@@ -1,0 +1,11 @@
+chain_info:
+  chain_id: specy-test-10
+  chain_binary_location: /root/gowork/bin/specyd
+  home_dir: /home/xuchao/mywork/txspec/specy-v2/data/specy-test-10
+  node_address: tcp://localhost:16657
+  validator_wallet_address: cosmos18hl5c9xn5dze2g50uaw0l2mr02ew57zk2fgr8q
+
+engine_info:
+  engine_node_address: 127.0.0.1:50051
+  ias_report: iasreport
+  enclave_pk: enclavepk

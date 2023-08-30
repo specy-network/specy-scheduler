@@ -3,20 +3,20 @@ package cmd
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/cosmos/relayer/v2/cregistry"
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/provider"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/provider"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
+
+	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 )
 
 const (
@@ -35,7 +35,7 @@ func chainsCmd(a *appState) *cobra.Command {
 		chainsListCmd(a),
 		chainsRegistryList(a),
 		chainsDeleteCmd(a),
-		chainsAddCmd(a),
+		chainAddCmd(a),
 		chainsShowCmd(a),
 		chainsAddrCmd(a),
 		chainsAddDirCmd(a),
@@ -269,58 +269,24 @@ $ %s ch l`, appName, appName)),
 	return yamlFlag(a.viper, jsonFlag(a.viper, cmd))
 }
 
-func chainsAddCmd(a *appState) *cobra.Command {
+func chainAddCmd(a *appState) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "add [chain-name...]",
+		Use:     "add [chain-name] [chain-binary-location]",
 		Aliases: []string{"a"},
-		Short: "Add a new chain to the configuration file by fetching chain metadata from \n" +
-			"                the chain-registry or passing a file (-f) or url (-u)",
-		Args: withUsage(cobra.MinimumNArgs(0)),
-		Example: fmt.Sprintf(` $ %s chains add cosmoshub
- $ %s chains add cosmoshub osmosis
- $ %s chains add --file chains/ibc0.json ibc0
- $ %s chains add --url https://relayer.com/ibc0.json ibc0`, appName, appName, appName, appName),
+		Short:   "Add a new chain-binary-info to scheduler",
+		Args:    withUsage(cobra.MinimumNArgs(0)),
+		Example: fmt.Sprintf(` $ %s chains add osmosis 'chain-binary-location'`, appName),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			file, url, err := getAddInputs(cmd)
+			chainName := args[0]
+			chainBinaryLocation := args[1]
+
+			specyconfig.AddTargetChainConfig(chainName, chainBinaryLocation)
+			targetChainBinaryInfoMap, err := specyconfig.GetTargetChainBinaryInfoMap()
 			if err != nil {
-				return err
+				fmt.Errorf("err: %+v \n", err)
 			}
-
-			if ok := a.config; ok == nil {
-				return fmt.Errorf("config not initialized, consider running `rly config init`")
-			}
-
-			return a.performConfigLockingOperation(cmd.Context(), func() error {
-				// default behavior fetch from chain registry
-				// still allow for adding config from url or file
-				switch {
-				case file != "":
-					var chainName string
-					switch len(args) {
-					case 0:
-						chainName = strings.Split(filepath.Base(file), ".")[0]
-					case 1:
-						chainName = args[0]
-					default:
-						return errors.New("one chain name is required")
-					}
-					if err := addChainFromFile(a, chainName, file); err != nil {
-						return err
-					}
-				case url != "":
-					if len(args) != 1 {
-						return errors.New("one chain name is required")
-					}
-					if err := addChainFromURL(a, args[0], url); err != nil {
-						return err
-					}
-				default:
-					if err := addChainsFromRegistry(cmd.Context(), a, args); err != nil {
-						return err
-					}
-				}
-				return nil
-			})
+			fmt.Printf("----------targetChainBinaryInfoMap-------------: %+v \n", targetChainBinaryInfoMap)
+			return nil
 		},
 	}
 
@@ -350,6 +316,8 @@ $ %s ch ad testnet/chains/`, appName, appName)),
 // addChainFromFile reads a JSON-formatted chain from the named file
 // and adds it to a's chains.
 func addChainFromFile(a *appState, chainName string, file string) error {
+	fmt.Printf("addChainFromFile... chainName: %s, file: %s \n", chainName, file)
+
 	// If the user passes in a file, attempt to read the chain config from that file
 	var pcw ProviderConfigWrapper
 	if _, err := os.Stat(file); err != nil {
@@ -364,6 +332,7 @@ func addChainFromFile(a *appState, chainName string, file string) error {
 	if err = json.Unmarshal(byt, &pcw); err != nil {
 		return err
 	}
+	fmt.Printf("json.Unmarshal... pcw: %+v \n", pcw)
 
 	prov, err := pcw.Value.NewProvider(
 		a.log.With(zap.String("provider_type", pcw.Type)),
@@ -372,8 +341,11 @@ func addChainFromFile(a *appState, chainName string, file string) error {
 	if err != nil {
 		return fmt.Errorf("failed to build ChainProvider for %s: %w", file, err)
 	}
+	fmt.Printf("pcw.Value.NewProvider... prov: %+v \n", prov)
 
-	c := relayer.NewChain(a.log, prov, a.debug)
+	c := scheduler.NewChain(a.log, prov, a.debug)
+
+	fmt.Printf("a.config.AddChain... c: %+v \n", c)
 	if err = a.config.AddChain(c); err != nil {
 		return err
 	}
@@ -413,7 +385,7 @@ func addChainFromURL(a *appState, chainName string, rawurl string) error {
 		return fmt.Errorf("failed to build ChainProvider for %s: %w", rawurl, err)
 	}
 
-	c := relayer.NewChain(a.log, prov, a.debug)
+	c := scheduler.NewChain(a.log, prov, a.debug)
 	if err := a.config.AddChain(c); err != nil {
 		return err
 	}
@@ -476,7 +448,7 @@ func addChainsFromRegistry(ctx context.Context, a *appState, chains []string) er
 		}
 
 		// add to config
-		c := relayer.NewChain(a.log, prov, a.debug)
+		c := scheduler.NewChain(a.log, prov, a.debug)
 		if err = a.config.AddChain(c); err != nil {
 			a.log.Warn(
 				"Failed to add chain to config",

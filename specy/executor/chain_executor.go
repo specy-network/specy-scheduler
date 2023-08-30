@@ -6,15 +6,82 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/cosmos/relayer/v2/specy"
-	specyconfig "github.com/cosmos/relayer/v2/specy/config"
-	specytypes "github.com/cosmos/relayer/v2/specy/types"
 	"os/exec"
 	"strconv"
 	"time"
+
+	specyconfig "github.com/cosmos/relayer/v2/specy/config"
+	specytypes "github.com/cosmos/relayer/v2/specy/types"
 )
 
-func SendTaskResponseToChain(specyResp specytypes.TaskResponse, task *specy.Task) error {
+func CreateExecutorOnChain(iasReport string, enclavePK string) error {
+	cmd := exec.Command("specyd", "tx", "specy", "create-executor",
+		iasReport, enclavePK,
+		"--from", specyconfig.Config.ChainInfo.ValidatorWalletAddress,
+		"--chain-id", specyconfig.Config.ChainInfo.ChainId,
+		"--home", specyconfig.Config.ChainInfo.HomeDir,
+		"--node", specyconfig.Config.ChainInfo.NodeAddress,
+		"--keyring-backend", "test", "--yes")
+
+	fmt.Printf("---------------cmd--------------: %+v \n", cmd)
+
+	_, err := executeCmd(cmd)
+	return err
+}
+
+func SendTaskResponseToChain(msg string, task *specytypes.Task) error {
+	//taskResult := string(specyResp.Result.TaskResult)
+	//taskResult := "FM2vKqiPHN0XCQ=="
+	//taskResult, _ = decodeTaskResult(taskResult)
+	//completeCalldata, err := assembleCalldata(task.RuleFile, taskResult)
+
+	// 从 task 中获取 target chain name
+	//targetChainName := task.xxxx
+	targetChainName := "osmo-test-5"
+	targetChainBinaryInfo, err := specyconfig.GetTargetChainConfig(targetChainName)
+	if targetChainBinaryInfo == nil {
+		return fmt.Errorf("target chain binary info is nil")
+	}
+	fmt.Printf("target chain: %s binary location: %s \n", targetChainName, targetChainBinaryInfo.BinaryLocation)
+
+	cmd := exec.Command(targetChainBinaryInfo.BinaryLocation, "tx", "interchain-accounts", "host",
+		"generate-packet-data", msg, "--memo", "executing-task")
+
+	output, err := executeCmd(cmd)
+	if err != nil {
+		return err
+	}
+	packetData, err := retrievePacketDataFromCmdOutput(output)
+	if err != nil {
+		return err
+	}
+
+	//msg, err := specyChain.ChainProvider.MsgExecuteTask(task.Creator, task.Creator, task.TaskName, "cproofstring", packetData)
+	//if err != nil {
+	//	return err
+	//}
+	//specyChain.ChainProvider.SendMessage(ctx, msg, "")
+
+	cmd = exec.Command("specyd", "tx", "specy", "execute-task",
+		task.Creator, task.TaskName, "cproofstring", packetData,
+		"--from", specyconfig.Config.ChainInfo.ValidatorWalletAddress,
+		"--chain-id", specyconfig.Config.ChainInfo.ChainId,
+		"--home", specyconfig.Config.ChainInfo.HomeDir,
+		"--node", specyconfig.Config.ChainInfo.NodeAddress,
+		"--keyring-backend", "test", "--yes")
+
+	fmt.Printf("---------------cmd--------------: %+v \n", cmd)
+
+	_, err = executeCmd(cmd)
+	return err
+}
+
+func retrievePacketDataFromCmdOutput(output string) (string, error) {
+	fmt.Println("---------------PacketDataOutput--------------:", output)
+	return output, nil
+}
+
+func SendTaskResponseToChainLegacy(specyResp specytypes.TaskResponse, task *specytypes.Task) error {
 	taskResult := string(specyResp.Result.TaskResult)
 	//taskResult := "FM2vKqiPHN0XCQ=="
 	//taskResult, _ = decodeTaskResult(taskResult)
@@ -24,8 +91,18 @@ func SendTaskResponseToChain(specyResp specytypes.TaskResponse, task *specy.Task
 		return err
 	}
 
-	cmd := exec.Command(specyconfig.Config.TargetChainBinaryLocation, "tx", "specy", "execute-task", task.Creator, task.TaskName, string(specyResp.Signature), string(specyResp.Result.TaskResult), "--from", task.Creator, "--chain_id", specyconfig.Config.TargetChainId, "--home", specyconfig.Config.HomeDir, "--keyring-backend", "test", "--yes")
+	cmd := exec.Command("specyd", "tx", "specy", "execute-task",
+		task.Creator, task.TaskName, string(specyResp.Signature), string(specyResp.Result.TaskResult),
+		"--from", task.Creator,
+		"--chain_id", specyconfig.Config.ChainInfo.ChainId,
+		//"--home", specyconfig.Config.SpecyInfo,
+		"--keyring-backend", "test", "--yes")
 
+	_, err = executeCmd(cmd)
+	return err
+}
+
+func executeCmd(cmd *exec.Cmd) (string, error) {
 	// 创建缓冲区来存储标准输出和标准错误输出
 	var stdout bytes.Buffer
 	var stderr bytes.Buffer
@@ -35,21 +112,26 @@ func SendTaskResponseToChain(specyResp specytypes.TaskResponse, task *specy.Task
 	cmd.Stderr = &stderr
 
 	// 执行命令
-	err = cmd.Run()
+	err := cmd.Run()
 
+	result := stdout.String()
 	if err != nil {
 		// 捕获到错误
 		fmt.Println("执行命令出错:", err)
-		fmt.Println("标准输出:", stdout.String())
-		fmt.Println("标准错误输出:", stderr.String())
-		return err
+		if len(result) == 0 {
+			result = stderr.String()
+		}
+		fmt.Println("执行结果:", result)
+		return "", err
 	}
 
 	// 执行成功
 	fmt.Println("命令执行完成")
-	fmt.Println("标准输出:", stdout.String())
-	fmt.Println("标准错误输出:", stderr.String())
-	return nil
+	if len(result) == 0 {
+		result = stderr.String()
+	}
+	fmt.Println("执行结果:", result)
+	return result, nil
 }
 
 func assembleCalldata(calldata string, taskResult string) (string, error) {
@@ -114,7 +196,7 @@ func SendProofResponseToChain(txSpecResp specytypes.ProofResponse) error {
 		fmt.Println("JSON encoding error:", err)
 		return err
 	}
-	cmd := exec.Command(specyconfig.Config.TargetChainBinaryLocation, "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature))
+	cmd := exec.Command("specyd", "tx", "regulatory", "submit-spec-value", string(txSpecResp.TxHash), string(jsonData), string(txSpecResp.ProofsHash), string(txSpecResp.TeeSignature))
 	// 执行命令并获取输出
 	output, err := cmd.Output()
 	if err != nil {

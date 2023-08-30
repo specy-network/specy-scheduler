@@ -70,7 +70,7 @@ func (hb *Heartbeat) start(ctx context.Context, interval time.Duration) {
 }
 
 func createAndCacheEngineStream(ctx context.Context, isHeartbeat bool) types.Regulator_GetTaskResultClient {
-	engineNodeAddress := specyconfig.Config.EngineNodeAddress
+	engineNodeAddress := specyconfig.Config.EngineInfo.EngineNodeAddress
 	fmt.Printf("-------------engineNodeAddress: %s \n", engineNodeAddress)
 
 	clientCon, err := grpc.Dial(engineNodeAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
@@ -141,10 +141,10 @@ func InvokeEngineWithTx(
 	return cproof, err
 }
 
-func InvokeEngineWithTask(taskHash string) (types.TaskResponse, error) {
+func InvokeEngineWithTask(ruleFile, checkData string) (types.TaskResponse, error) {
 	// 构建请求
 	request := &types.TaskRequest{
-		Taskhash: []byte(taskHash),
+		Taskhash: []byte(ruleFile),
 	}
 
 	response, err := SendTaskRequest(*request)

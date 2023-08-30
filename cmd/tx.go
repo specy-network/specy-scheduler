@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -10,9 +8,8 @@ import (
 	"github.com/avast/retry-go/v4"
 	sdk "github.com/cosmos/cosmos-sdk/types"
 	chantypes "github.com/cosmos/ibc-go/v7/modules/core/04-channel/types"
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/processor"
-	"github.com/cosmos/relayer/v2/relayer/provider"
+	"github.com/cosmos/relayer/v2/scheduler"
+	"github.com/cosmos/relayer/v2/scheduler/provider"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -36,9 +33,8 @@ Most of these commands take a [path] argument. Make sure:
 	cmd.AddCommand(
 		linkCmd(a),
 		linkThenStartCmd(a),
-		flushCmd(a),
-		relayMsgsCmd(a),
-		relayAcksCmd(a),
+		//relayMsgsCmd(a),
+		//relayAcksCmd(a),
 		xfersend(a),
 		lineBreakCommand(),
 		createClientsCmd(a),
@@ -177,24 +173,24 @@ func createClientCmd(a *appState) *cobra.Command {
 			// Query the latest heights on src and dst and retry if the query fails
 			var srch, dsth int64
 			if err = retry.Do(func() error {
-				srch, dsth, err = relayer.QueryLatestHeights(cmd.Context(), src, dst)
+				srch, dsth, err = scheduler.QueryLatestHeights(cmd.Context(), src, dst)
 				if srch == 0 || dsth == 0 || err != nil {
 					return fmt.Errorf("failed to query latest heights: %w", err)
 				}
 				return err
-			}, retry.Context(cmd.Context()), relayer.RtyAtt, relayer.RtyDel, relayer.RtyErr); err != nil {
+			}, retry.Context(cmd.Context()), scheduler.RtyAtt, scheduler.RtyDel, scheduler.RtyErr); err != nil {
 				return err
 			}
 
 			// Query the light signed headers for src & dst at the heights srch & dsth, retry if the query fails
 			var srcUpdateHeader, dstUpdateHeader provider.IBCHeader
 			if err = retry.Do(func() error {
-				srcUpdateHeader, dstUpdateHeader, err = relayer.QueryIBCHeaders(cmd.Context(), src, dst, srch, dsth)
+				srcUpdateHeader, dstUpdateHeader, err = scheduler.QueryIBCHeaders(cmd.Context(), src, dst, srch, dsth)
 				if err != nil {
 					return err
 				}
 				return nil
-			}, retry.Context(cmd.Context()), relayer.RtyAtt, relayer.RtyDel, relayer.RtyErr, retry.OnRetry(func(n uint, err error) {
+			}, retry.Context(cmd.Context()), scheduler.RtyAtt, scheduler.RtyDel, scheduler.RtyErr, retry.OnRetry(func(n uint, err error) {
 				a.log.Info(
 					"Failed to get light signed header",
 					zap.String("src_chain_id", src.ChainID()),
@@ -202,15 +198,15 @@ func createClientCmd(a *appState) *cobra.Command {
 					zap.String("dst_chain_id", dst.ChainID()),
 					zap.Int64("dst_height", dsth),
 					zap.Uint("attempt", n+1),
-					zap.Uint("max_attempts", relayer.RtyAttNum),
+					zap.Uint("max_attempts", scheduler.RtyAttNum),
 					zap.Error(err),
 				)
-				srch, dsth, _ = relayer.QueryLatestHeights(cmd.Context(), src, dst)
+				srch, dsth, _ = scheduler.QueryLatestHeights(cmd.Context(), src, dst)
 			})); err != nil {
 				return err
 			}
 
-			clientID, err := relayer.CreateClient(cmd.Context(), src, dst, srcUpdateHeader, dstUpdateHeader, allowUpdateAfterExpiry, allowUpdateAfterMisbehaviour, override, customClientTrustingPeriod, a.config.memo(cmd))
+			clientID, err := scheduler.CreateClient(cmd.Context(), src, dst, srcUpdateHeader, dstUpdateHeader, allowUpdateAfterExpiry, allowUpdateAfterMisbehaviour, override, customClientTrustingPeriod, a.config.memo(cmd))
 			if err != nil {
 				return err
 			}
@@ -259,7 +255,7 @@ corresponding update-client messages.`,
 				return fmt.Errorf("key %s not found on dst chain %s", c[dst].ChainProvider.Key(), c[dst].ChainID())
 			}
 
-			return relayer.UpdateClients(cmd.Context(), c[src], c[dst], a.config.memo(cmd))
+			return scheduler.UpdateClients(cmd.Context(), c[src], c[dst], a.config.memo(cmd))
 		},
 	}
 
@@ -296,10 +292,10 @@ func upgradeClientsCmd(a *appState) *cobra.Command {
 
 			// send the upgrade message on the targetChainID
 			if src == targetChainID {
-				return relayer.UpgradeClient(cmd.Context(), c[dst], c[src], height, memo)
+				return scheduler.UpgradeClient(cmd.Context(), c[dst], c[src], height, memo)
 			}
 
-			return relayer.UpgradeClient(cmd.Context(), c[src], c[dst], height, memo)
+			return scheduler.UpgradeClient(cmd.Context(), c[src], c[dst], height, memo)
 		},
 	}
 
@@ -726,156 +722,6 @@ $ %s tx link-then-start demo-path --timeout 5s`, appName, appName)),
 	return cmd
 }
 
-func flushCmd(a *appState) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "flush [path_name]? [src_channel_id]?",
-		Aliases: []string{"relay-pkts"},
-		Short:   "flush any pending MsgRecvPacket and MsgAcknowledgement messages on a given path, in both directions",
-		Args:    withUsage(cobra.RangeArgs(0, 2)),
-		Example: strings.TrimSpace(fmt.Sprintf(`
-$ %s tx flush
-$ %s tx flush demo-path
-$ %s tx flush demo-path channel-0`,
-			appName, appName, appName,
-		)),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			chains := make(map[string]*relayer.Chain)
-			var paths []relayer.NamedPath
-
-			if len(args) > 0 {
-				pathName := args[0]
-				path := a.config.Paths.MustGet(pathName)
-				paths = append(paths, relayer.NamedPath{
-					Name: pathName,
-					Path: path,
-				})
-
-				// collect unique chain IDs
-				chains[path.Src.ChainID] = nil
-				chains[path.Dst.ChainID] = nil
-			} else {
-				for n, path := range a.config.Paths {
-					paths = append(paths, relayer.NamedPath{
-						Name: n,
-						Path: path,
-					})
-
-					// collect unique chain IDs
-					chains[path.Src.ChainID] = nil
-					chains[path.Dst.ChainID] = nil
-				}
-			}
-
-			chainIDs := make([]string, 0, len(chains))
-			for chainID := range chains {
-				chainIDs = append(chainIDs, chainID)
-			}
-
-			// get chain configurations
-			chains, err := a.config.Chains.Gets(chainIDs...)
-			if err != nil {
-				return err
-			}
-
-			if err := ensureKeysExist(chains); err != nil {
-				return err
-			}
-
-			maxTxSize, maxMsgLength, err := GetStartOptions(cmd)
-			if err != nil {
-				return err
-			}
-
-			if len(args) == 2 {
-				// Only allow specific channel
-				paths[0].Path.Filter = relayer.ChannelFilter{
-					Rule:        processor.RuleAllowList,
-					ChannelList: []string{args[1]},
-				}
-			}
-
-			ctx, cancel := context.WithTimeout(cmd.Context(), flushTimeout)
-			defer cancel()
-
-			rlyErrCh := relayer.StartRelayer(
-				ctx,
-				a.log,
-				chains,
-				paths,
-				maxTxSize, maxMsgLength,
-				a.config.memo(cmd),
-				0,
-				0,
-				&processor.FlushLifecycle{},
-				relayer.ProcessorEvents,
-				0,
-				nil,
-			)
-
-			// Block until the error channel sends a message.
-			// The context being canceled will cause the relayer to stop,
-			// so we don't want to separately monitor the ctx.Done channel,
-			// because we would risk returning before the relayer cleans up.
-			if err := <-rlyErrCh; err != nil && !errors.Is(err, context.Canceled) {
-				a.log.Warn(
-					"Relayer start error",
-					zap.Error(err),
-				)
-				return err
-			}
-			return nil
-		},
-	}
-
-	cmd = strategyFlag(a.viper, cmd)
-	cmd = memoFlag(a.viper, cmd)
-	return cmd
-}
-
-func relayMsgsCmd(a *appState) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "relay-packets path_name src_channel_id",
-		Aliases: []string{"relay-pkts"},
-		Short:   "relay any remaining non-relayed packets on a given path, in both directions",
-		Args:    withUsage(cobra.ExactArgs(2)),
-		Example: strings.TrimSpace(fmt.Sprintf(`
-$ %s transact relay-packets demo-path channel-0
-$ %s tx relay-pkts demo-path channel-0`,
-			appName, appName,
-		)),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			a.log.Warn("This command is deprecated. Please use 'tx flush' command instead")
-			return flushCmd(a).RunE(cmd, args)
-		},
-	}
-
-	cmd = strategyFlag(a.viper, cmd)
-	cmd = memoFlag(a.viper, cmd)
-	return cmd
-}
-
-func relayAcksCmd(a *appState) *cobra.Command {
-	cmd := &cobra.Command{
-		Use:     "relay-acknowledgements path_name src_channel_id",
-		Aliases: []string{"relay-acks"},
-		Short:   "relay any remaining non-relayed acknowledgements on a given path, in both directions",
-		Args:    withUsage(cobra.ExactArgs(2)),
-		Example: strings.TrimSpace(fmt.Sprintf(`
-$ %s transact relay-acknowledgements demo-path channel-0
-$ %s tx relay-acks demo-path channel-0 -l 3 -s 6`,
-			appName, appName,
-		)),
-		RunE: func(cmd *cobra.Command, args []string) error {
-			a.log.Warn("This command is deprecated. Please use 'tx flush' command instead")
-			return flushCmd(a).RunE(cmd, args)
-		},
-	}
-
-	cmd = strategyFlag(a.viper, cmd)
-	cmd = memoFlag(a.viper, cmd)
-	return cmd
-}
-
 func xfersend(a *appState) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "transfer src_chain_name dst_chain_name amount dst_addr src_channel_id",
@@ -904,7 +750,7 @@ $ %s tx raw send ibc-0 ibc-1 100000stake cosmos1skjwj5whet0lpe65qaq4rpq03hjxlwd9
 				return err
 			}
 
-			var path *relayer.Path
+			var path *scheduler.Path
 			if path, err = setPathsFromArgs(a, src, dst, pathString); err != nil {
 				return err
 			}
@@ -987,7 +833,7 @@ $ %s tx raw send ibc-0 ibc-1 100000stake cosmos1skjwj5whet0lpe65qaq4rpq03hjxlwd9
 	return timeoutFlags(a.viper, pathFlag(a.viper, cmd))
 }
 
-func setPathsFromArgs(a *appState, src, dst *relayer.Chain, name string) (*relayer.Path, error) {
+func setPathsFromArgs(a *appState, src, dst *scheduler.Chain, name string) (*scheduler.Path, error) {
 	// find any configured paths between the chains
 	paths, err := a.config.Paths.PathsFromChains(src.ChainID(), dst.ChainID())
 	if err != nil {
@@ -996,7 +842,7 @@ func setPathsFromArgs(a *appState, src, dst *relayer.Chain, name string) (*relay
 
 	// Given the number of args and the number of paths, work on the appropriate
 	// path.
-	var path *relayer.Path
+	var path *scheduler.Path
 	switch {
 	case name != "" && len(paths) > 1:
 		if path, err = paths.Get(name); err != nil {
@@ -1029,11 +875,19 @@ func setPathsFromArgs(a *appState, src, dst *relayer.Chain, name string) (*relay
 }
 
 // ensureKeysExist returns an error if a configured key for a given chain does not exist.
-func ensureKeysExist(chains map[string]*relayer.Chain) error {
+func ensureKeysExist(chains map[string]*scheduler.Chain) error {
 	for _, v := range chains {
 		if exists := v.ChainProvider.KeyExists(v.ChainProvider.Key()); !exists {
 			return fmt.Errorf("key %s not found on chain %s", v.ChainProvider.Key(), v.ChainID())
 		}
+	}
+
+	return nil
+}
+
+func ensureKeyExist(chain *scheduler.Chain) error {
+	if exists := chain.ChainProvider.KeyExists(chain.ChainProvider.Key()); !exists {
+		return fmt.Errorf("key %s not found on chain %s", chain.ChainProvider.Key(), chain.ChainID())
 	}
 
 	return nil

@@ -20,15 +20,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net"
 	"strconv"
 	"strings"
 
-	"github.com/cosmos/relayer/v2/internal/relaydebug"
-	"github.com/cosmos/relayer/v2/relayer"
-	"github.com/cosmos/relayer/v2/relayer/chains/cosmos"
-	"github.com/cosmos/relayer/v2/relayer/processor"
-	specyexecutor "github.com/cosmos/relayer/v2/specy/executor"
+	specyconfig "github.com/cosmos/relayer/v2/specy/config"
+
+	"github.com/cosmos/relayer/v2/scheduler"
 	"github.com/spf13/cobra"
 	"go.uber.org/zap"
 )
@@ -36,111 +33,21 @@ import (
 // startCmd represents the start command
 func startCmd(a *appState) *cobra.Command {
 	cmd := &cobra.Command{
-		Use:     "start path_name",
+		Use:     "start",
 		Aliases: []string{"st"},
-		Short:   "Start the listening relayer on a given path",
+		Short:   "Start the scheduler on specy chain",
 		Args:    withUsage(cobra.MinimumNArgs(0)),
 		Example: strings.TrimSpace(fmt.Sprintf(`
-$ %s start           # start all configured paths
-$ %s start demo-path # start the 'demo-path' path
-$ %s start demo-path --max-msgs 3
-$ %s start demo-path2 --max-tx-size 10`, appName, appName, appName, appName)),
+$ %s start           # start all configured paths`, appName)),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			chains := make(map[string]*relayer.Chain)
-			paths := make([]relayer.NamedPath, len(args))
 
-			if len(args) > 0 {
-				for i, pathName := range args {
-					path := a.config.Paths.MustGet(pathName)
-					paths[i] = relayer.NamedPath{
-						Name: pathName,
-						Path: path,
-					}
-
-					// collect unique chain IDs
-					chains[path.Src.ChainID] = nil
-					chains[path.Dst.ChainID] = nil
-				}
-			} else {
-				for n, path := range a.config.Paths {
-					paths = append(paths, relayer.NamedPath{
-						Name: n,
-						Path: path,
-					})
-
-					// collect unique chain IDs
-					chains[path.Src.ChainID] = nil
-					chains[path.Dst.ChainID] = nil
-				}
-			}
-
-			chainIDs := make([]string, 0, len(chains))
-			for chainID := range chains {
-				chainIDs = append(chainIDs, chainID)
-			}
-
-			// get chain configurations
-			chains, err := a.config.Chains.Gets(chainIDs...)
+			homePath, err := cmd.Flags().GetString(flagHome)
 			if err != nil {
 				return err
 			}
+			a.homePath = homePath
 
-			if err := ensureKeysExist(chains); err != nil {
-				return err
-			}
-
-			maxTxSize, maxMsgLength, err := GetStartOptions(cmd)
-			if err != nil {
-				return err
-			}
-
-			var prometheusMetrics *processor.PrometheusMetrics
-
-			debugAddr := a.config.Global.APIListenPort
-
-			debugAddrFlag, err := cmd.Flags().GetString(flagDebugAddr)
-			if err != nil {
-				return err
-			}
-
-			if debugAddrFlag != "" {
-				debugAddr = debugAddrFlag
-			}
-
-			if debugAddr == "" {
-				a.log.Info("Skipping debug server due to empty debug address flag")
-			} else {
-				ln, err := net.Listen("tcp", debugAddr)
-				if err != nil {
-					a.log.Error("Failed to listen on debug address. If you have another relayer process open, use --" + flagDebugAddr + " to pick a different address.")
-					return fmt.Errorf("failed to listen on debug address %q: %w", debugAddr, err)
-				}
-				log := a.log.With(zap.String("sys", "debughttp"))
-				log.Info("Debug server listening", zap.String("addr", debugAddr))
-				prometheusMetrics = processor.NewPrometheusMetrics()
-				relaydebug.StartDebugServer(cmd.Context(), log, ln, prometheusMetrics.Registry)
-				for _, chain := range chains {
-					if ccp, ok := chain.ChainProvider.(*cosmos.CosmosProvider); ok {
-						ccp.SetMetrics(prometheusMetrics)
-					}
-				}
-			}
-
-			processorType, err := cmd.Flags().GetString(flagProcessor)
-			if err != nil {
-				return err
-			}
 			initialBlockHistory, err := cmd.Flags().GetUint64(flagInitialBlockHistory)
-			if err != nil {
-				return err
-			}
-
-			clientUpdateThresholdTime, err := cmd.Flags().GetDuration(flagThresholdTime)
-			if err != nil {
-				return err
-			}
-
-			flushInterval, err := cmd.Flags().GetDuration(flagFlushInterval)
 			if err != nil {
 				return err
 			}
@@ -148,28 +55,27 @@ $ %s start demo-path2 --max-tx-size 10`, appName, appName, appName, appName)),
 			// init specy network environment
 			initSpecyNetwork(cmd.Context())
 
-			rlyErrCh := relayer.StartRelayer(
+			specyChain := getSpecyChain(a)
+
+			if err := ensureKeyExist(specyChain); err != nil {
+				return err
+			}
+
+			lstErrCh := scheduler.StartListener(
 				cmd.Context(),
 				a.log,
-				chains,
-				paths,
-				maxTxSize, maxMsgLength,
-				a.config.memo(cmd),
-				clientUpdateThresholdTime,
-				flushInterval,
+				specyChain,
 				nil,
-				processorType,
 				initialBlockHistory,
-				prometheusMetrics,
 			)
 
 			// Block until the error channel sends a message.
 			// The context being canceled will cause the relayer to stop,
 			// so we don't want to separately monitor the ctx.Done channel,
 			// because we would risk returning before the relayer cleans up.
-			if err := <-rlyErrCh; err != nil && !errors.Is(err, context.Canceled) {
+			if err := <-lstErrCh; err != nil && !errors.Is(err, context.Canceled) {
 				a.log.Warn(
-					"Relayer start error",
+					"Listener start error",
 					zap.Error(err),
 				)
 				return err
@@ -213,5 +119,12 @@ func GetStartOptions(cmd *cobra.Command) (uint64, uint64, error) {
 }
 
 func initSpecyNetwork(ctx context.Context) {
-	specyexecutor.ConnectSpecyEngineWithHeartbeat(ctx)
+	specyconfig.ReadSpecyConfigInfo()
+	fmt.Printf("SpecyConfig: %+v \n", specyconfig.Config)
+	//specyexecutor.ConnectSpecyEngineWithHeartbeat(ctx)
+}
+
+func getSpecyChain(a *appState) *scheduler.Chain {
+	fmt.Printf("getSpecyChain... chainName: %s \n", specyconfig.Config.ChainInfo.ChainId)
+	return a.config.Chains[specyconfig.Config.ChainInfo.ChainId]
 }

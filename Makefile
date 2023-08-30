@@ -42,8 +42,8 @@ build-zip: go.sum
 	@tar -czvf release.tar.gz ./build
 
 install: go.sum
-	@echo "installing rly binary..."
-	@go build -mod=readonly $(BUILD_FLAGS) -o $(GOBIN)/rly main.go
+	@echo "installing sch binary..."
+	@go build -mod=readonly $(BUILD_FLAGS) -o $(GOBIN)/sch main.go
 
 build-gaia-docker:
 	docker build -t cosmos/gaia:$(GAIA_VERSION) --build-arg VERSION=$(GAIA_VERSION) -f ./docker/gaiad/Dockerfile .

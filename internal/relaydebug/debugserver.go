@@ -12,7 +12,7 @@ import (
 )
 
 // StartDebugServer starts a debug server in a background goroutine,
-// accepting connections on the given listener.
+// accepting connections on the given processor.
 // Any HTTP logging will be written at info level to the given logger.
 // The server will be forcefully shut down when ctx finishes.
 func StartDebugServer(ctx context.Context, log *zap.Logger, ln net.Listener, registry *prometheus.Registry) {
