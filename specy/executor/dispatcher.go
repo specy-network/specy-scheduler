@@ -23,7 +23,7 @@ func ExecuteTask(task *specytypes.Task) {
 		return
 	}
 
-	executeMsg, err := assembleExecuteMsgWithEngineOutput(task.Msg, engineOutput.OutputData)
+	executeMsg, err := AssembleExecuteMsgWithEngineOutput(task.Msg, engineOutput.OutputData)
 	if err != nil {
 		fmt.Errorf("failed assemble execute msg: %s", err)
 		return
@@ -41,7 +41,7 @@ func mockEngine(task *specytypes.Task) (string, error) {
 	return task.Msg, nil
 }
 
-func assembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (string, error) {
+func AssembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (string, error) {
 	var taskMsgData map[string]interface{}
 	var engineOutputData map[string]interface{}
 
@@ -55,7 +55,7 @@ func assembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (st
 		return "", fmt.Errorf("failed parsing engine output: %s", err)
 	}
 
-	assembleExecuteMsg(taskMsgData, engineOutputData)
+	recursiveMerge(taskMsgData, engineOutputData)
 
 	executeMsgData, err := json.Marshal(taskMsgData)
 	if err != nil {
@@ -67,18 +67,25 @@ func assembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (st
 	return executeMsg, nil
 }
 
-func assembleExecuteMsg(taskMsgValueMap, engineOutputValueMap map[string]interface{}) {
-	for key, value := range engineOutputValueMap {
-		if taskMsgValue, exists := taskMsgValueMap[key]; exists {
-			if engineOutputInnerMap, isTMap := value.(map[string]interface{}); isTMap {
-				if taskMsgInnerMap, isEMap := taskMsgValue.(map[string]interface{}); isEMap {
-					assembleExecuteMsg(taskMsgInnerMap, engineOutputInnerMap)
-				} else {
-					taskMsgValueMap[key] = value
+func recursiveMerge(target, source map[string]interface{}) {
+	for key, sourceValue := range source {
+		// 检查目标中是否存在相同的键
+		_, exists := target[key]
+		if !exists {
+			for _, targetValue := range target {
+				// 如果字段是 map 类型，递归合并
+				if targetMap, isMap := targetValue.(map[string]interface{}); isMap {
+					recursiveMerge(targetMap, source)
 				}
-			} else {
-				taskMsgValueMap[key] = value
 			}
+		} else {
+			// 如果目标中没有这个键，直接添加
+			target[key] = sourceValue
+			break
+		}
+		sourceMap, isMap := sourceValue.(map[string]interface{})
+		if isMap {
+			recursiveMerge(target, sourceMap)
 		}
 	}
 }

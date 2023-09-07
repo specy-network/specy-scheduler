@@ -81,26 +81,26 @@ func retrievePacketDataFromCmdOutput(output string) (string, error) {
 	return output, nil
 }
 
-func SendTaskResponseToChainLegacy(specyResp specytypes.TaskResponse, task *specytypes.Task) error {
-	taskResult := string(specyResp.Result.TaskResult)
-	//taskResult := "FM2vKqiPHN0XCQ=="
-	//taskResult, _ = decodeTaskResult(taskResult)
-	//completeCalldata, err := assembleCalldata(task.RuleFile, taskResult)
-	_, err := assembleCalldata(task.RuleFile, taskResult)
-	if err != nil {
-		return err
-	}
-
-	cmd := exec.Command("specyd", "tx", "specy", "execute-task",
-		task.Creator, task.TaskName, string(specyResp.Signature), string(specyResp.Result.TaskResult),
-		"--from", task.Creator,
-		"--chain_id", specyconfig.Config.ChainInfo.ChainId,
-		//"--home", specyconfig.Config.SpecyInfo,
-		"--keyring-backend", "test", "--yes")
-
-	_, err = executeCmd(cmd)
-	return err
-}
+//func SendTaskResponseToChainLegacy(specyResp specytypes.TaskResponse, task *specytypes.Task) error {
+//	taskResult := string(specyResp.Result.TaskResult)
+//	//taskResult := "FM2vKqiPHN0XCQ=="
+//	//taskResult, _ = decodeTaskResult(taskResult)
+//	//completeCalldata, err := assembleCalldata(task.RuleFile, taskResult)
+//	_, err := assembleCalldata(task.RuleFile, taskResult)
+//	if err != nil {
+//		return err
+//	}
+//
+//	cmd := exec.Command("specyd", "tx", "specy", "execute-task",
+//		task.Creator, task.TaskName, string(specyResp.Signature), string(specyResp.Result.TaskResult),
+//		"--from", task.Creator,
+//		"--chain_id", specyconfig.Config.ChainInfo.ChainId,
+//		//"--home", specyconfig.Config.SpecyInfo,
+//		"--keyring-backend", "test", "--yes")
+//
+//	_, err = executeCmd(cmd)
+//	return err
+//}
 
 func executeCmd(cmd *exec.Cmd) (string, error) {
 	// 创建缓冲区来存储标准输出和标准错误输出
