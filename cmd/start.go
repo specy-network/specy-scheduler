@@ -20,6 +20,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	specyexecutor "github.com/cosmos/relayer/v2/specy/executor"
 	"strconv"
 	"strings"
 
@@ -121,7 +122,7 @@ func GetStartOptions(cmd *cobra.Command) (uint64, uint64, error) {
 func initSpecyNetwork(ctx context.Context) {
 	specyconfig.ReadSpecyConfigInfo()
 	fmt.Printf("SpecyConfig: %+v \n", specyconfig.Config)
-	//specyexecutor.ConnectSpecyEngineWithHeartbeat(ctx)
+	specyexecutor.ConnectSpecyEngineWithHeartbeat(ctx)
 }
 
 func getSpecyChain(a *appState) *scheduler.Chain {

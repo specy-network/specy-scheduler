@@ -5,13 +5,14 @@ import (
 	"fmt"
 	specyconfig "github.com/cosmos/relayer/v2/specy/config"
 	"github.com/cosmos/relayer/v2/specy/types"
+	specytypes "github.com/cosmos/relayer/v2/specy/types"
 	"google.golang.org/grpc"
 	"log"
 	"sync"
 	"time"
 )
 
-var engineStream types.Regulator_GetTaskResultClient
+var engineStream types.Executor_GetTaskResultClient
 
 type Heartbeat struct {
 	isConnected bool
@@ -69,7 +70,7 @@ func (hb *Heartbeat) start(ctx context.Context, interval time.Duration) {
 	}
 }
 
-func createAndCacheEngineStream(ctx context.Context, isHeartbeat bool) types.Regulator_GetTaskResultClient {
+func createAndCacheEngineStream(ctx context.Context, isHeartbeat bool) types.Executor_GetTaskResultClient {
 	engineNodeAddress := specyconfig.Config.EngineInfo.EngineNodeAddress
 	fmt.Printf("-------------engineNodeAddress: %s \n", engineNodeAddress)
 
@@ -83,7 +84,7 @@ func createAndCacheEngineStream(ctx context.Context, isHeartbeat bool) types.Reg
 		return nil
 	}
 
-	client := types.NewRegulatorClient(clientCon)
+	client := types.NewExecutorClient(clientCon)
 	fmt.Printf("-------------client: %+v \n", client)
 
 	stream, err := client.GetTaskResult(ctx)
@@ -141,10 +142,12 @@ func InvokeEngineWithTx(
 	return cproof, err
 }
 
-func InvokeEngineWithTask(ruleFile, checkData string) (types.TaskResponse, error) {
+func InvokeEngineWithTask(task *specytypes.Task) (types.TaskResponse, error) {
 	// 构建请求
 	request := &types.TaskRequest{
-		Taskhash: []byte(ruleFile),
+		Taskhash:  []byte(task.TaskHash),
+		RuleFile:  task.RuleFile,
+		InputData: task.CheckData,
 	}
 
 	response, err := SendTaskRequest(*request)
@@ -167,19 +170,19 @@ func SendTaskRequest(request types.TaskRequest) (types.TaskResponse, error) {
 
 /** ---------------------------------- deprecated functions ---------------------------------- */
 
-func cacheEngineStream(ctx context.Context, stream *types.Regulator_GetTaskResultClient) context.Context {
+func cacheEngineStream(ctx context.Context, stream *types.Executor_GetTaskResultClient) context.Context {
 	specyInfoMap := *ctx.Value(types.SpecyInfoKey).(*map[string]any)
 	specyInfoMap[types.EngineStreamKey] = &stream
 
 	return context.WithValue(ctx, types.SpecyInfoKey, &specyInfoMap)
 }
 
-func getCachedEngineStream(ctx context.Context) types.Regulator_GetTaskResultClient {
+func getCachedEngineStream(ctx context.Context) types.Executor_GetTaskResultClient {
 	specyInfoMap, ok := ctx.Value(types.SpecyInfoKey).(map[string]any)
 	if !ok {
 		return nil
 	}
-	cs, ok := specyInfoMap[types.EngineStreamKey].(types.Regulator_GetTaskResultClient)
+	cs, ok := specyInfoMap[types.EngineStreamKey].(types.Executor_GetTaskResultClient)
 	if !ok {
 		return nil
 	}

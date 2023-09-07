@@ -11,14 +11,19 @@ import (
 func ExecuteTask(task *specytypes.Task) {
 
 	// invoke specy engine
-	//engineOutput, err := InvokeEngineWithTask(task.RuleFile, task.CheckData)
-	engineOutput, err := mockEngine(task)
+	engineOutput, err := InvokeEngineWithTask(task)
+	//engineOutput, err := mockEngine(task)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+	fmt.Printf("engineOutput: %+v \n", engineOutput)
+	if len(engineOutput.ErrorInfo) != 0 {
+		fmt.Errorf("engineOutput error info: %s", engineOutput.ErrorInfo)
+		return
+	}
 
-	executeMsg, err := assembleExecuteMsgWithEngineOutput(task.Msg, engineOutput)
+	executeMsg, err := assembleExecuteMsgWithEngineOutput(task.Msg, engineOutput.OutputData)
 	if err != nil {
 		fmt.Errorf("failed assemble execute msg: %s", err)
 		return
