@@ -18,6 +18,10 @@ func ExecuteTask(task *specytypes.Task) {
 		return
 	}
 	fmt.Printf("engineOutput: %+v \n", engineOutput)
+	if !engineOutput.Status {
+		fmt.Println("不满足checkdata条件, 不予执行")
+		return
+	}
 	if len(engineOutput.ErrorInfo) != 0 {
 		fmt.Errorf("engineOutput error info: %s", engineOutput.ErrorInfo)
 		return
