@@ -74,7 +74,11 @@ func triggerTimeIntervalTask(task *specytypes.Task) {
 	}()
 }
 
-func TriggerEveryBlockTasks() {
+func TriggerEveryBlockTasks(blockHeight int64) {
+
+	if blockHeight%20 != 0 {
+		return
+	}
 
 	// 将task放到数组中 方便后续操作
 	tasks := make([]*specytypes.Task, 0, len(everyBlockTasks))
