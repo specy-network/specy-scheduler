@@ -74,7 +74,8 @@ func createAndCacheEngineStream(ctx context.Context, isHeartbeat bool) types.Reg
 	engineNodeAddress := specyconfig.Config.EngineInfo.EngineNodeAddress
 	fmt.Printf("-------------engineNodeAddress: %s \n", engineNodeAddress)
 
-	clientCon, err := grpc.Dial(engineNodeAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second))
+	size := 2100000000
+	clientCon, err := grpc.Dial(engineNodeAddress, grpc.WithInsecure(), grpc.WithBlock(), grpc.WithTimeout(10*time.Second), grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(size)))
 	if err != nil {
 		if !isHeartbeat {
 			log.Fatalf("Failed to connnect engine: %v \n", err)
