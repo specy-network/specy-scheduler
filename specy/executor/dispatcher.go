@@ -43,7 +43,7 @@ func mockEngine(task *specytypes.Task) (string, error) {
 
 func AssembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (string, error) {
 	var taskMsgData map[string]interface{}
-	var engineOutputData map[string]interface{}
+	var engineOutputData map[string][]map[string]interface{}
 
 	err := json.Unmarshal([]byte(taskMsg), &taskMsgData)
 	if err != nil {
@@ -52,10 +52,12 @@ func AssembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (st
 
 	err = json.Unmarshal([]byte(engineOutput), &engineOutputData)
 	if err != nil {
+		log.Println("---------- ", err)
 		return "", fmt.Errorf("failed parsing engine output: %s", err)
 	}
-
-	recursiveMerge(taskMsgData, engineOutputData)
+	log.Println("---------- ")
+	log.Printf("---------- %s \n", engineOutputData["outputdata"][0])
+	recursiveMerge(taskMsgData, engineOutputData["outputdata"][0])
 
 	executeMsgData, err := json.Marshal(taskMsgData)
 	if err != nil {
