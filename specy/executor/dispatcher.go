@@ -52,11 +52,8 @@ func AssembleExecuteMsgWithEngineOutput(taskMsg string, engineOutput string) (st
 
 	err = json.Unmarshal([]byte(engineOutput), &engineOutputData)
 	if err != nil {
-		log.Println("---------- ", err)
 		return "", fmt.Errorf("failed parsing engine output: %s", err)
 	}
-	log.Println("---------- ")
-	log.Printf("---------- %s \n", engineOutputData["outputdata"][0])
 	recursiveMerge(taskMsgData, engineOutputData["outputdata"][0])
 
 	executeMsgData, err := json.Marshal(taskMsgData)

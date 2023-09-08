@@ -42,7 +42,7 @@ func SendTaskResponseToChain(msg string, task *specytypes.Task) error {
 	if targetChainBinaryInfo == nil {
 		return fmt.Errorf("target chain binary info is nil")
 	}
-	fmt.Printf("target chain: %s binary location: %s \n", targetChainName, targetChainBinaryInfo.BinaryLocation)
+	fmt.Printf("===========begin generate packet data============= target chain: %s binary location: %s \n", targetChainName, targetChainBinaryInfo.BinaryLocation)
 
 	cmd := exec.Command(targetChainBinaryInfo.BinaryLocation, "tx", "interchain-accounts", "host",
 		"generate-packet-data", msg, "--memo", "executing-task")
@@ -52,6 +52,8 @@ func SendTaskResponseToChain(msg string, task *specytypes.Task) error {
 		return err
 	}
 	packetData, err := retrievePacketDataFromCmdOutput(output)
+	fmt.Printf("===========finish generate packet data============= PacketDataOutput: %s \n", output)
+
 	if err != nil {
 		return err
 	}
@@ -70,14 +72,15 @@ func SendTaskResponseToChain(msg string, task *specytypes.Task) error {
 		"--node", specyconfig.Config.ChainInfo.NodeAddress,
 		"--keyring-backend", "test", "--yes")
 
-	fmt.Printf("---------------cmd--------------: %+v \n", cmd)
+	fmt.Printf("===========begin execute on specy chain============= cmd: %+v \n", cmd)
 
 	_, err = executeCmd(cmd)
+	fmt.Println("===========finish execute on specy chain=============")
+
 	return err
 }
 
 func retrievePacketDataFromCmdOutput(output string) (string, error) {
-	fmt.Println("---------------PacketDataOutput--------------:", output)
 	return output, nil
 }
 

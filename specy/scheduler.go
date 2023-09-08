@@ -75,10 +75,9 @@ func triggerTimeIntervalTask(task *specytypes.Task) {
 }
 
 func TriggerEveryBlockTasks(blockHeight int64) {
-
-	if blockHeight%20 != 0 {
-		return
-	}
+	//if blockHeight%20 != 0 {
+	//	return
+	//}
 
 	// 将task放到数组中 方便后续操作
 	tasks := make([]*specytypes.Task, 0, len(everyBlockTasks))
@@ -115,19 +114,14 @@ func processTriggerEveryBlockTask(tasks []*specytypes.Task) {
 		return
 	}
 
-	var wg sync.WaitGroup
-	defer wg.Done()
-
 	var itemWg sync.WaitGroup
-
+	itemWg.Add(len(tasks))
 	for _, task := range tasks {
-		itemWg.Add(1)
-
-		go func(task *specytypes.Task) {
+		go func(t *specytypes.Task) {
 			defer itemWg.Done()
 
-			fmt.Printf("Processing task: %+v \n", task)
-			specyexecutor.ExecuteTask(task)
+			fmt.Printf("Processing task: %+v \n", t)
+			specyexecutor.ExecuteTask(t)
 
 		}(task)
 	}
