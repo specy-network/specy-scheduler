@@ -8,17 +8,14 @@ service Regulator {
 
 message TaskRequest {
     bytes taskhash = 1;
-}
-
-message Result {
-    bool status = 1;
-    bytes task_result = 2;
-    string error_info = 3; // empty if status is true
+    string rule_file = 2;
+    string input_data = 3;
 }
 
 message TaskResponse {
     bytes taskhash = 1;
-    Result result =2;
-    bytes rule_file_hash = 3;
-    bytes signature = 4;
+    bool status =2;
+    string error_info = 3;
+    string output_data = 4;
+    bytes signature = 5;
 }
