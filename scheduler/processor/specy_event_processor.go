@@ -10,7 +10,6 @@ import (
 	specytypes "github.com/cosmos/relayer/v2/specy/types"
 
 	"regexp"
-	"strconv"
 	"time"
 
 	"github.com/cosmos/relayer/v2/utils"
@@ -89,12 +88,12 @@ func registerTaskOnScheduler(evt sdk.StringEvent) {
 				// ruleFile 中没有指定执行时间 默认是现在开始(延迟30s)
 				startTime = time.Now().Add(30 * time.Second)
 			}
-		case "task_type":
-			taskType = attr.Value
-		case "task_interval_type":
-			intervalType = attr.Value
-		case "task_interval_number":
-			interval, _ = strconv.Atoi(attr.Value)
+		//case "task_type":
+		//	taskType = attr.Value
+		//case "task_interval_type":
+		//	intervalType = attr.Value
+		//case "task_interval_number":
+		//	interval, _ = strconv.Atoi(attr.Value)
 		case "task_check_data":
 			checkData = attr.Value
 		default:
