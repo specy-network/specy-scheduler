@@ -386,7 +386,7 @@ func (ccp *CosmosChainProcessor) queryCycle(ctx context.Context, persistence *qu
 		//}
 
 		// deal with each block
-		go specy.TriggerEveryBlockTasks(blockRes.Height)
+		specy.TriggerEveryBlockTasks(blockRes.Height)
 
 		// collect events and deal
 		var events []abci.Event
