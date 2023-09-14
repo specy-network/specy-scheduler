@@ -29,7 +29,7 @@ func CreateExecutorOnChain(iasReport string, enclavePK string) error {
 	return err
 }
 
-func SendTaskResponseToChain(msg string, task *specytypes.Task) error {
+func SendTaskResponseToChain(msg string, cproof string, task *specytypes.Task) error {
 	//taskResult := string(specyResp.Result.TaskResult)
 	//taskResult := "FM2vKqiPHN0XCQ=="
 	//taskResult, _ = decodeTaskResult(taskResult)
@@ -65,7 +65,7 @@ func SendTaskResponseToChain(msg string, task *specytypes.Task) error {
 	//specyChain.ChainProvider.SendMessage(ctx, msg, "")
 
 	cmd = exec.Command("specyd", "tx", "specy", "execute-task",
-		task.Creator, task.TaskName, "cproofstring", packetData,
+		task.Creator, task.TaskName, cproof, packetData,
 		"--from", specyconfig.Config.ChainInfo.ValidatorWalletAddress,
 		"--chain-id", specyconfig.Config.ChainInfo.ChainId,
 		"--home", specyconfig.Config.ChainInfo.HomeDir,

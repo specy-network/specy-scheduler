@@ -19,7 +19,7 @@ func ExecuteTask(task *specytypes.Task) {
 	}
 	fmt.Printf("engineOutput: %+v \n", engineOutput)
 	if !engineOutput.Status {
-		fmt.Println("不满足checkdata条件, 不予执行")
+		fmt.Println("task is not executed: not meet checkdata condition")
 		return
 	}
 	if len(engineOutput.ErrorInfo) != 0 {
@@ -34,7 +34,7 @@ func ExecuteTask(task *specytypes.Task) {
 	}
 
 	// send task response to chain
-	err = SendTaskResponseToChain(executeMsg, task)
+	err = SendTaskResponseToChain(executeMsg, engineOutput.Cproof, task)
 	if err != nil {
 		fmt.Errorf("SendTaskResponseToChain error: %s", err)
 		return

@@ -17,5 +17,6 @@ message TaskResponse {
     bool status =2;
     string error_info = 3;
     string output_data = 4;
-    bytes signature = 5;
+    string cproof = 5;
+    bytes signature = 6;
 }
